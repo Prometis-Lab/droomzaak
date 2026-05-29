@@ -216,3 +216,42 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ───────────────────────── Droomzaak hackathon ─────────────────────────
+# Real secret files — NEVER commit. Only `.env.demo.example` (the template) is tracked.
+.env.demo
+.env.local
+.env.*.local
+
+# Per-machine Claude Code overrides (settings.local.json is personal, not shared)
+.claude/settings.local.json
+
+# think-strategies MCP scratch storage
+.claude/thinking-sessions/
+
+# Inherited Prometis toolkit (geocoder + bundled BeSt centroids) — provided locally, not redistributed
+inherited/
+
+# Inspiration materials (cloned public repos, prior implementations) — kept LOCAL, not committed.
+# reference-scout mines them if present; only the README (the explainer) is tracked.
+/reference/*
+!/reference/README.md
+
+# Generated data tier (DuckDB, cached GeoJSON, Parquet dumps) — recreated by ingest
+data/
+
+# Node / build
+node_modules/
+.next/
+dist/
+.vite/
+
+# Security scan artefacts
+*.sarif
+.semgrep/
+.opengrep/
+
+# Supabase CLI local state (keep migrations/, schema.sql, functions/, scripts/, QUICK_REFERENCE.md tracked)
+supabase/.branches/
+supabase/.temp/
+supabase/.env

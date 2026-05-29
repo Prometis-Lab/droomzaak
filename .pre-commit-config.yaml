@@ -1,0 +1,22 @@
+# OPTIONAL deterministic security floor (PRD sponsor: Aikido).
+# Not installed by default — the team's normal path is `/ship`. Enable when you want a
+# hard, non-bypassable gate at real `git commit` time (recommended before the Aikido audit):
+#
+#   uvx pre-commit install        # installs into .git/hooks
+#
+# NOTE: the repo also ships .githooks/commit-msg (conventional commits). If you use
+# core.hooksPath=.githooks AND pre-commit, run `pre-commit install --hook-type pre-commit`
+# (pre-commit manages .git/hooks; the conventional-commits hook is commit-msg, so they don't collide).
+#
+# All real work delegates to the single source of truth: .claude/hooks/security-gate.sh
+# (so /ship, this framework, and the optional PreToolUse hook all run the SAME checks).
+
+repos:
+  - repo: local
+    hooks:
+      - id: droomzaak-security-gate
+        name: Droomzaak security gate (semgrep/opengrep + gitleaks/betterleaks)
+        entry: .claude/hooks/security-gate.sh fast
+        language: system
+        pass_filenames: false
+        always_run: true

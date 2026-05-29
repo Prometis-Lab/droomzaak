@@ -1,0 +1,16 @@
+-- ============================================================================
+-- Droomzaak warehouse — full schema + RPC snapshot (the local mirror)
+-- ============================================================================
+-- This is the QUERYABLE, RE-DEPLOYABLE copy of the `droomzaak` schema on Supabase.
+-- It is GENERATED — do not hand-edit. Regenerate after every applied migration so it
+-- always matches the live DB:
+--
+--     supabase db dump --schema public -f supabase/schema.sql        # via Supabase CLI
+--   # or:
+--     pg_dump --schema-only --no-owner --no-privileges "$SUPABASE_DB_URL" > supabase/schema.sql
+--
+-- Use it to query locally (`psql -f supabase/schema.sql` into a scratch DB) or to
+-- redeploy the whole schema from scratch. Change history lives in supabase/migrations/.
+--
+-- (empty until the first migration is applied — see supabase/README.md and the
+--  `supabase-schema-sync` skill for the workflow.)

@@ -1,0 +1,19 @@
+{
+  "//": "Per-machine, NOT shared. Copy to settings.local.json (gitignored) and adjust to taste.",
+  "//enabledPlugins": "If superpowers resolves to the community marketplace instead of the official one, /bootstrap will add it; you can also pin extra plugins here. NOTE: a key MUST exist in .claude/settings.json (it does) or these merges are dropped (claude-code#25086).",
+  "enabledPlugins": {},
+
+  "//enableAllProjectMcpServers": "Leave the project-MCP approval as a one-time prompt (default). Flip to true ONLY if you want zero prompts and accept auto-approving any server later added to .mcp.json.",
+
+  "//env": "Personal secrets are better exported in your shell, but you may set them here for convenience. NEVER commit a filled settings.local.json.",
+  "env": {
+    "//SODA_STRAW_TOKEN": "paste your agent_* scoped token",
+    "//SODA_STRAW_URL": "confirm at signup",
+    "//ANTHROPIC_API_KEY": "",
+    "//OPENAI_API_KEY": "",
+    "//GOOGLE_MAPS_API_KEY": "",
+    "//OPENROUTESERVICE_API_KEY": "",
+    "//TAVILY_API_KEY": "",
+    "//CONTEXT7_API_KEY": ""
+  }
+}

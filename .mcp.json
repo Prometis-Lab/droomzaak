@@ -1,0 +1,40 @@
+{
+  "_comment": "DEV-TIME MCP servers for the team's Claude Code sessions. The PRODUCT runtime reaches Soda Straw via its OWN Python MCP client in the FastAPI backend — separate from this file. Secrets come from your shell env via ${VAR} interpolation; never hard-code tokens. Teammates are prompted ONCE to approve these on first use. soda-straw: confirm exact URL + auth at sodastraw.ai/trial/start; if it uses OAuth instead of a static bearer, delete the headers block and let /mcp drive the flow on a 401. think-strategies: step_back/self_consistency/session-manager, used by spec-critic + demo-readiness-reviewer. context7: live version-correct library docs (works for many libs without a key).",
+
+  "mcpServers": {
+    "soda-straw": {
+      "type": "http",
+      "url": "${SODA_STRAW_URL:-https://app.sodastraw.ai/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${SODA_STRAW_TOKEN}"
+      }
+    },
+
+    "think-strategies": {
+      "command": "npx",
+      "args": ["-y", "github:aaronsb/think-strategies", "--storage-path", ".claude/thinking-sessions"]
+    },
+
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+
+    "semgrep": {
+      "command": "uvx",
+      "args": ["semgrep-mcp"]
+    },
+
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--read-only", "--project-ref=${SUPABASE_PROJECT_REF}"],
+      "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" }
+    }
+  }
+}

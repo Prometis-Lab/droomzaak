@@ -1,0 +1,17 @@
+# gitleaks / Betterleaks config for Droomzaak.
+# Both tools auto-discover this at repo root. Keeps all built-in rules and
+# allowlists only the templated example files (placeholders, never real secrets).
+
+title = "droomzaak gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Templated demo/env example files — placeholders only"
+paths = [
+  '''\.env\.demo\.example$''',
+  '''\.env\.example$''',
+  '''.*\.example$''',
+  '''\.claude/settings\.local\.json\.example$''',
+]
