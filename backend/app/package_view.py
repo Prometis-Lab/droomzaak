@@ -42,6 +42,47 @@ def _paragraphs(text: str) -> list[str]:
     return [block for block in blocks if block]
 
 
+def _is_number(value: object) -> bool:
+    # bool is an int subclass; exclude it so a stray True can't read as 1 euro.
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _summary_chips(pkg: dict) -> list[dict]:
+    """The most-important points, surfaced as a glanceable strip atop the pakket.
+
+    Pure presentation: counts/sums the already-curated package fields (never the
+    warehouse). Each chip is hidden when its underlying data is absent, so a thin
+    session shows a short strip rather than empty placeholders.
+    """
+    chips: list[dict] = []
+
+    location = pkg.get("chosen_location") or {}
+    place = location.get("wijk_nl") or location.get("address")
+    if place:
+        chips.append({"label": "Locatie", "value": place})
+
+    permits = pkg.get("permit_checklist") or []
+    if permits:
+        chips.append({"label": "Vergunningen", "value": str(len(permits))})
+
+    legal_form = pkg.get("legal_form") or {}
+    setup_cost = legal_form.get("estimated_setup_cost_eur")
+    total = sum(p["estimated_cost_eur"] for p in permits if _is_number(p.get("estimated_cost_eur")))
+    if _is_number(setup_cost):
+        total += setup_cost
+    if total:
+        chips.append({"label": "Geschatte opstartkosten", "value": f"± €{int(total)}"})
+
+    active_subsidies = [s for s in (pkg.get("subsidies") or []) if s.get("status") != "ended_2025"]
+    if active_subsidies:
+        chips.append({"label": "Beschikbare steun", "value": f"{len(active_subsidies)} regeling(en)"})
+
+    if legal_form.get("recommended"):
+        chips.append({"label": "Rechtsvorm", "value": legal_form["recommended"]})
+
+    return chips
+
+
 def _has_content(pkg: dict) -> bool:
     """A package worth rendering has at least a dream, a place, or some output."""
     return bool(
@@ -95,6 +136,7 @@ def build_package_context(store, session_id: str) -> dict | None:
         return None
     ctx = dict(pkg)
     ctx["narrative_paragraphs"] = _paragraphs(pkg.get("dream_narrative") or "")
+    ctx["summary_chips"] = _summary_chips(pkg)
     return ctx
 
 

@@ -8,7 +8,9 @@ the loop. The five hard-earned behaviours are preserved:
 2. Commit-enforcement nudge — one forcing message if the model ends without committing.
 3. Synthesis fallback — last bare text becomes the reply, with a problem_report.
 4. JSON-envelope unwrap — `{"reply":...}` emitted as plaintext is unwrapped.
-5. Early break after commit — exit immediately once apply_map_actions succeeds.
+5. Commit-then-continue — break after apply_map_actions by default; an on_commit hook
+      may return a Continuation to re-expand tools and re-prompt for the next chapter in
+      the same turn.
 """
 
 from __future__ import annotations
@@ -31,6 +33,19 @@ class ToolCall:
     id: str
     name: str
     arguments: dict[str, Any]
+
+
+@dataclass
+class Continuation:
+    """Returned by an on_commit hook to keep the loop running after a commit.
+
+    The chapter wrapper uses this to re-expand the tool surface to a newly-entered
+    chapter and re-prompt with that chapter's block, so a chapter advance delivers
+    its result in the SAME user turn instead of next turn.
+    """
+
+    tool_specs_neutral: list[dict]  # new tool surface (re-translated by the adapter)
+    nudge_text: str  # appended as a forcing nudge message (new chapter block + directive)
 
 
 @dataclass
@@ -125,6 +140,7 @@ async def run_loop(
     max_iterations: int = 8,
     debug_stages: list | None = None,
     on_stage=None,
+    on_commit: Callable[["AgentRun", list], "Continuation | None"] | None = None,
 ) -> dict:
     debug_stages = debug_stages if debug_stages is not None else []
     create_kwargs = create_kwargs or {}
@@ -208,7 +224,20 @@ async def run_loop(
         if run.pending_reply is not None and any(
             tc.name == "apply_map_actions" for tc in response.tool_calls
         ):
-            break  # early break after commit
+            continuation = None
+            if on_commit is not None:
+                try:
+                    continuation = on_commit(run, debug_stages)
+                except Exception as exc:  # a misbehaving hook must never crash the turn
+                    _emit(debug_stages, "on_commit_error", {"error": str(exc)}, on_stage)
+                    continuation = None
+            if continuation is None:
+                break  # early break after commit (unchanged default when on_commit is None)
+            # Same-turn continuation: re-expand the tool surface, re-prompt, keep looping.
+            # pending_reply is intentionally NOT reset — the next commit overwrites it, and
+            # if the continuation never commits, the (honest) bridge reply is the safe fallback.
+            tools = adapter.translate_tool_specs(continuation.tool_specs_neutral)
+            adapter.append_commit_nudge(messages, continuation.nudge_text)
 
     # Resolve reply via three-tier fallback.
     if run.pending_reply is not None:

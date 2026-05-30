@@ -170,7 +170,6 @@ pipeline = [
     { name = "loguru" },
     { name = "pandas", extra = ["parquet"] },
     { name = "pyproj" },
-    { name = "shapely" },
 ]
 
 [package.metadata]
@@ -193,6 +192,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "shapely", specifier = ">=2.1.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 
@@ -207,7 +207,6 @@ pipeline = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "pandas", extras = ["parquet"], specifier = ">=3.0.3" },
     { name = "pyproj", specifier = "==3.7.2" },
-    { name = "shapely", specifier = "==2.1.2" },
 ]
 
 [[package]]

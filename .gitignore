@@ -229,6 +229,9 @@ __marimo__/
 # Per-machine Claude Code overrides (settings.local.json is personal, not shared)
 .claude/settings.local.json
 
+# Claude Code scheduler lock (ephemeral, per-machine — never committed)
+.claude/scheduled_tasks.lock
+
 # think-strategies MCP scratch storage
 .claude/thinking-sessions/
 
@@ -273,6 +276,10 @@ pitch/keyframes/**/*.png
 *.duckdb.wal
 frontend/dist/
 .python-version
+
+# Playwright / webapp-testing artifacts (transient test output, never committed)
+frontend/test-results/
+frontend/playwright-report/
 
 # TS build info
 *.tsbuildinfo

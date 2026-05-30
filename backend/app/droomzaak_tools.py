@@ -19,6 +19,7 @@ set_chapter_state is NOT here — committed through apply_map_actions.
 from __future__ import annotations
 
 import datetime as _dt
+import decimal as _decimal
 import functools
 import hashlib
 import json
@@ -27,7 +28,7 @@ from typing import Any
 
 import yaml  # pyyaml — already in pyproject.toml
 
-from backend.app import droomzaak_fabricate, settings
+from backend.app import droomzaak_fabricate, settings, warehouse_catalog
 from backend.app.agent_loop import AgentRun
 from backend.app.data_gateway import DataGatewayUnavailable, gateway
 
@@ -200,6 +201,37 @@ def tool_specs() -> list[dict]:
          "input_schema": {"type": "object", "properties": {
              "chapter_state": {"type": "object"}, "session_id": {"type": "string"}},
              "required": ["chapter_state", "session_id"]}},
+        {"name": "describe_warehouse",
+         "description": (
+             "DISCOVER: list the warehouse tables you can query, or (with table=...) the "
+             "columns of one — name, meaning, which are numeric (usable as agg_field) and "
+             "which are groupable (usable as group_by), plus the table's proxy/licence caveat. "
+             "Call this before query_warehouse on any table you haven't used. Pure metadata."
+         ),
+         "input_schema": {"type": "object", "properties": {"table": {"type": "string"}}}},
+        {"name": "query_warehouse",
+         "description": (
+             "ANALYSE: one aggregate over one warehouse table via the DataGateway. "
+             "agg=count|sum|avg|min|max|median (non-count needs a numeric agg_field); optional "
+             "group_by; optional filters [{column,op,value}] (op: =,!=,>,>=,<,<=,like,in). "
+             "table/columns MUST come from describe_warehouse. Returns ranked rows "
+             "{group_value,value,n} with the table's caveat. For the five core questions prefer "
+             "the dedicated tools (score_locations, peer_benchmarks_statbel, rent_benchmark); "
+             "use this for everything else (peer financials, survival, permits, points, …)."
+         ),
+         "input_schema": {"type": "object", "properties": {
+             "table": {"type": "string"},
+             "agg": {"type": "string",
+                     "enum": ["count", "sum", "avg", "min", "max", "median"], "default": "count"},
+             "agg_field": {"type": "string"},
+             "group_by": {"type": "string"},
+             "filters": {"type": "array", "items": {"type": "object", "properties": {
+                 "column": {"type": "string"},
+                 "op": {"type": "string",
+                        "enum": ["=", "!=", ">", ">=", "<", "<=", "like", "in"]},
+                 "value": {}}}},
+             "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+             "required": ["table"]}},
     ]
 
 
@@ -434,6 +466,8 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
                 "dataset_id": fab["dataset_id"],
                 "feature_count": len(fab["ranked"]),
                 "ranked": fab["ranked"],
+                "scores": [{"nis9_code": s["nis9_code"], "score": s["score"]}
+                           for s in fab["ranked"]],
             }
             return fab
         return _gw_error(exc)
@@ -484,6 +518,10 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
         "dataset_id": dataset_id,
         "feature_count": len(ranked),
         "ranked": ranked,
+        # Every scored sector (nis9_code → score) for the render tier: the
+        # frontend joins these onto the cached sector polygons to paint the
+        # city-wide score heatmap. Geometry never crosses the gateway.
+        "scores": [{"nis9_code": s["nis9_code"], "score": s["score"]} for s in scored],
     }
     return {
         "dataset_id": dataset_id,
@@ -803,12 +841,153 @@ async def handle_places_search(args: dict, run: AgentRun) -> dict:
                        "user_ratings_total": p.get("userRatingCount"), "coordinates": coords,
                        "types": p.get("types", [])})
         if coords[0] is not None:
+            # Carry the user-relevant fields onto the feature so a map click can
+            # surface them — the `places` list above keeps the full tool result.
             features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": coords},
-                             "properties": {"name": (p.get("displayName") or {}).get("text")}})
+                             "properties": {"name": (p.get("displayName") or {}).get("text"),
+                                            "address": p.get("formattedAddress"),
+                                            "rating": p.get("rating"),
+                                            "user_ratings_total": p.get("userRatingCount"),
+                                            "types": p.get("types", [])}})
     dataset_id = f"places-{_hash(query)}"
     run.datasets[dataset_id] = {"dataset_id": dataset_id, "feature_count": len(features),
                                 "geojson": {"type": "FeatureCollection", "features": features}}
     return {"dataset_id": dataset_id, "places": places}
+
+
+# ── describe_warehouse + query_warehouse (generic exploration) ────────────────
+#
+# A discover→analyse pair re-expressed through the DataGateway (map-pilot does the
+# analyse step in Python over cached GeoJSON — the render tier — which our
+# data-tiers rule forbids for reasoning). warehouse_catalog.CATALOG is the
+# identifier allowlist: only its tables/columns can reach the SQL string; values
+# are always parameterized.
+
+_ALLOWED_OPS = {"=", "!=", ">", ">=", "<", "<=", "like", "in"}
+_ALLOWED_AGGS = {"count", "sum", "avg", "min", "max", "median"}
+
+
+async def handle_describe_warehouse(args: dict, run: AgentRun) -> dict:
+    table = args.get("table")
+    if table:
+        profile = warehouse_catalog.describe(table)
+        if not profile:
+            return {"error": f"describe_warehouse: onbekende tabel '{table}'",
+                    "hint": "Laat 'table' weg voor de volledige lijst toegelaten tabellen."}
+        return profile
+    return {"tables": warehouse_catalog.list_tables()}
+
+
+def _build_filter(table: str, filters: list) -> tuple[list[str], list, dict | None]:
+    """Validate filters against the catalog allowlist → (where_parts, params, error)."""
+    where_parts: list[str] = []
+    params: list = []
+    for f in filters:
+        col = f.get("column")
+        op = f.get("op", "=")
+        val = f.get("value")
+        if not warehouse_catalog.column_meta(table, col):
+            return [], [], {"error": f"query_warehouse: filterkolom '{col}' bestaat niet in {table}",
+                            "hint": "Alleen kolommen uit describe_warehouse zijn toegelaten."}
+        if op not in _ALLOWED_OPS:
+            return [], [], {"error": f"query_warehouse: operator '{op}' niet toegelaten",
+                            "hint": f"Kies uit {sorted(_ALLOWED_OPS)}."}
+        if op == "in":
+            if not isinstance(val, list) or not val:
+                return [], [], {"error": "query_warehouse: 'in' verwacht een niet-lege lijst waarden"}
+            params.append(val)
+            where_parts.append(f"{col} = ANY(${len(params)})")
+        elif op == "like":
+            params.append(val)
+            where_parts.append(f"{col} ILIKE ${len(params)}")
+        else:
+            params.append(val)
+            where_parts.append(f"{col} {op} ${len(params)}")
+    return where_parts, params, None
+
+
+async def handle_query_warehouse(args: dict, run: AgentRun) -> dict:
+    table = args.get("table")
+    if not warehouse_catalog.is_table(table):
+        return {"error": f"query_warehouse: onbekende tabel '{table}'",
+                "hint": "Roep describe_warehouse aan voor de toegelaten tabellen."}
+    meta = warehouse_catalog.CATALOG[table]
+
+    agg = (args.get("agg") or "count").lower()
+    if agg not in _ALLOWED_AGGS:
+        return {"error": f"query_warehouse: onbekende aggregatie '{agg}'",
+                "hint": f"Kies uit {sorted(_ALLOWED_AGGS)}."}
+
+    # On aggregates-only tables (Belfirst / KBO academic), min/max would return one
+    # identifiable firm's exact value even for a large cohort — a per-onderneming leak
+    # the licence forbids. Restrict to genuine aggregates.
+    if meta["aggregates_only"] and agg in {"min", "max"}:
+        return {"error": f"query_warehouse: '{agg}' niet toegelaten op geaggregeerde-only tabel '{table}'",
+                "hint": "Gebruik count, sum, avg of median — min/max zou één onderneming blootleggen."}
+
+    agg_field = args.get("agg_field")
+    if agg != "count":
+        cm = warehouse_catalog.column_meta(table, agg_field) if agg_field else None
+        if not cm or not cm["numeric"]:
+            return {"error": f"query_warehouse: agg_field '{agg_field}' is geen numeriek veld van {table}",
+                    "hint": "Zie describe_warehouse(table=...) numeric_fields."}
+
+    group_by = args.get("group_by")
+    if group_by is not None:
+        cm = warehouse_catalog.column_meta(table, group_by)
+        if not cm or not cm["groupable"]:
+            return {"error": f"query_warehouse: group_by '{group_by}' is niet groepeerbaar in {table}",
+                    "hint": "Zie describe_warehouse(table=...) groupable_fields."}
+
+    where_parts, params, err = _build_filter(table, args.get("filters") or [])
+    if err:
+        return err
+
+    # agg_field / group_by are validated catalog identifiers here, never raw input.
+    if agg == "count":
+        agg_sql = "count(*)"
+    elif agg == "median":
+        agg_sql = f"percentile_cont(0.5) WITHIN GROUP (ORDER BY {agg_field})"
+    else:
+        agg_sql = f"{agg}({agg_field})"
+
+    select_parts = ([f"{group_by} AS group_value"] if group_by else []) + \
+        [f"{agg_sql} AS value", "count(*) AS n"]
+
+    limit = max(1, min(int(args.get("limit") or 20), 100))
+    params.append(limit)
+
+    sql = f"SELECT {', '.join(select_parts)} FROM droomzaak.{table}"
+    if where_parts:
+        sql += " WHERE " + " AND ".join(where_parts)
+    if group_by:
+        sql += f" GROUP BY {group_by}"
+    sql += f" ORDER BY value DESC NULLS LAST LIMIT ${len(params)}"
+
+    try:
+        rows = await gateway.query(sql, params, tool_name="query_warehouse")
+    except Exception as exc:  # gateway down / SQL error → graceful envelope
+        return _gw_error(exc)
+
+    # aggregates-only tables: drop any row backed by a cohort smaller than MIN_COHORT
+    # so no single firm's value can be reconstructed. Coerce asyncpg Decimals (avg /
+    # percentile_cont return numeric → Decimal, which is NOT JSON-serialisable) to
+    # float so the row survives the tool-result round-trip back to the model.
+    suppressed = 0
+    out_rows = []
+    for r in rows:
+        d = {k: (float(v) if isinstance(v, _decimal.Decimal) else v) for k, v in dict(r).items()}
+        if meta["aggregates_only"] and int(d.get("n") or 0) < warehouse_catalog.MIN_COHORT:
+            suppressed += 1
+            continue
+        out_rows.append(d)
+
+    return {
+        "table": table, "agg": agg, "agg_field": agg_field, "group_by": group_by,
+        "rows": out_rows, "row_count": len(out_rows),
+        "suppressed_low_cohort": suppressed,
+        "caveat_nl": meta["caveat_nl"], "licence": meta["licence"],
+    }
 
 
 # ── dispatch table ────────────────────────────────────────────────────────────
@@ -824,4 +1003,6 @@ HANDLERS = {
     "legal_form_advisor":       handle_legal_form_advisor,
     "generate_dream_narrative": handle_generate_dream_narrative,
     "compose_package":          handle_compose_package,
+    "describe_warehouse":       handle_describe_warehouse,
+    "query_warehouse":          handle_query_warehouse,
 }

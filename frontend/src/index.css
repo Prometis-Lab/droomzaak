@@ -95,6 +95,42 @@ body {
   box-shadow: 0 2px 8px var(--shadow);
 }
 
+/* ── Feature info popup (click on a point / sector) ───────────── */
+.dz-popup .maplibregl-popup-content {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 6px 20px var(--shadow);
+  font-family: var(--font-ui);
+}
+.dz-popup .maplibregl-popup-tip {
+  border-top-color: var(--paper) !important;
+  border-bottom-color: var(--paper) !important;
+}
+.dz-feature-popup { position: relative; padding: 12px 14px; min-width: 170px; max-width: 280px; }
+.dz-feature-popup__close {
+  position: absolute; top: 4px; right: 8px;
+  border: none; background: transparent;
+  font-size: 20px; line-height: 1; cursor: pointer;
+  color: var(--ink-soft);
+}
+.dz-feature-popup__close:hover { color: var(--terracotta-deep); }
+.dz-feature-popup__title {
+  font-family: var(--font);
+  font-size: 15px; font-weight: 700;
+  margin: 0 18px 8px 0;
+  color: var(--terracotta-deep);
+}
+.dz-feature-popup__rows { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.dz-feature-popup__row {
+  display: flex; justify-content: space-between; gap: 14px;
+  font-size: 12.5px;
+}
+.dz-feature-popup__row dt { color: var(--ink-soft); }
+.dz-feature-popup__row dd { margin: 0; color: var(--ink); font-weight: 600; text-align: right; }
+.dz-feature-popup__empty { margin: 0; font-size: 12px; color: var(--ink-soft); }
+
 /* ── Droomkaart sidebar ───────────────────────────────────────── */
 .droomkaart {
   background: var(--paper-2);
@@ -365,5 +401,64 @@ body {
 .icon-toggle-btn:hover {
   background: var(--terracotta);
   border-color: var(--terracotta);
+  color: #fff;
+}
+
+/* ── Street View card (marker click popup) ────────────────────── */
+.marker-streetview-card {
+  position: absolute;
+  bottom: 80px;   /* above the MapLibre attribution + nav controls */
+  right: 16px;
+  z-index: 20;    /* above map tiles and markers, below no other chrome */
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(60, 45, 25, 0.22);
+  overflow: hidden;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+}
+.marker-streetview-img {
+  display: block;
+  width: 100%;
+  height: 213px;  /* 600×400 ratio at 320px wide */
+  object-fit: cover;
+  background: var(--paper-2);
+}
+.marker-streetview-placeholder {
+  height: 213px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-align: center;
+  background: var(--paper-2);
+}
+.marker-streetview-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: none;
+  background: rgba(247, 241, 230, 0.85);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: background 0.12s, color 0.12s;
+}
+.marker-streetview-close:hover {
+  background: var(--terracotta-deep);
   color: #fff;
 }
