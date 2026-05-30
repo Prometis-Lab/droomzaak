@@ -7,8 +7,7 @@
 
   "//env": "Personal secrets are better exported in your shell, but you may set them here for convenience. NEVER commit a filled settings.local.json.",
   "env": {
-    "//SODA_STRAW_TOKEN": "paste your agent_* scoped token",
-    "//SODA_STRAW_URL": "confirm at signup",
+    "//DATABASE_URL": "the droomzaak Postgres connection string the DataGateway reads (read-only role)",
     "//ANTHROPIC_API_KEY": "",
     "//OPENAI_API_KEY": "",
     "//GOOGLE_MAPS_API_KEY": "",

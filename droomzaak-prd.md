@@ -2,7 +2,7 @@
 
 _Status: design-approved, ready for hackathon implementation._
 _Author session: 2026-05-28._
-_Hackathon: Hackers & Ravers — Saturday 2026-05-30, 10:00–20:00, Wintercircus Ghent. 12-hour build, in-person, AI evaluator → live jury → 3 winners. Required infra: **Soda Straw** MCP. Claude Code supported._
+_Hackathon: Hackers & Ravers — Saturday 2026-05-30, 10:00–20:00, Wintercircus Ghent. 12-hour build, in-person, AI evaluator → live jury → 3 winners. Claude Code supported (Soda Straw is used as a dev-time Claude Code MCP, not a product dependency)._
 _Repository: a new repo, branched from Map Pilot v2, reusing the existing agent loop, MapLibre canvas, catalogue ingest, and open-data pipeline. This PRD is written in Map Pilot v2 so the design context is colocated with the foundation it builds on._
 
 ---
@@ -11,7 +11,7 @@ _Repository: a new repo, branched from Map Pilot v2, reusing the existing agent 
 
 **Droomzaak** ("dream company") guides aspiring entrepreneurs in Ghent through the wall of decisions and paperwork that follow the first thought of *"I want my own business"* — keeping the *dreaming* alive instead of crushing it. A five-chapter map-anchored journey turns a sentence (*"a small vegan bistro near Vrijdagmarkt"*) into a printable *Droomzaak-pakket*: dream narrative, scored location candidates, niche peer numbers, a sector-branched permit checklist, a subsidy shortlist, a legal-form recommendation, and a clear set of next-step links. The agent does the reading the founder used to do at midnight.
 
-The product is a hackathon-built extension of Map Pilot. It reuses the existing 16-tool LLM agent, the MapLibre canvas, the open-data catalogue, the validation contract, and the chapter-style debug viewer. It adds: a chapter state machine, ~8 new agent tools, a Droomkaart sidebar, a slim chapter rail, and a printable package renderer. All analytical data the agent reasons over is brokered through **Soda Straw**, with a Postgres warehouse loaded from 60+ pre-curated Belgian open datasets behind it. The map keeps rendering from Map Pilot's existing DuckDB + cached GeoJSON layer so panning stays instant.
+The product is a hackathon-built extension of Map Pilot. It reuses the existing 16-tool LLM agent, the MapLibre canvas, the open-data catalogue, the validation contract, and the chapter-style debug viewer. It adds: a chapter state machine, ~8 new agent tools, a Droomkaart sidebar, a slim chapter rail, and a printable package renderer. All analytical data the agent reasons over flows through one internal **DataGateway** (parameterized SQL over a Postgres warehouse), loaded from 60+ pre-curated Belgian open datasets. The map keeps rendering from Map Pilot's existing DuckDB + cached GeoJSON layer so panning stays instant.
 
 It addresses the City of Ghent's own RFP: *"one-stop-shop voor startende ondernemers: digitale tool die ondernemers helpt bij locatiekeuze en zaakopstart op basis van relevante stadsdata"*. After the hackathon, Droomzaak is the candidate for that one-stop shop: post-MVP roadmap covers execution flow (form-filing, appointment booking), live real-estate integration, CBSO peer benchmarks, city expansion, and a parallel OOG-advisor surface.
 
@@ -165,10 +165,10 @@ Data tier — two-tier
 ├── Tier 1: RENDER (local, fast)
 │   └── DuckDB + cached GeoJSON (reused from Map Pilot)
 │   └── Feeds MapLibre layer cache only — never agent reasoning
-└── Tier 2: REASON (via Soda Straw)
+└── Tier 2: REASON (via the DataGateway)
     └── Postgres 16 ('droomzaak' schema) — canonical analytical tables
-    └── Soda Straw MCP server in front of Postgres = the only path for
-        agent analytical tool calls (peer benchmarks, scoring, lookups)
+    └── DataGateway (parameterized SQL) in front of Postgres = the only path
+        for agent analytical tool calls (peer benchmarks, scoring, lookups)
 
 Live external (not in Postgres)
 ├── OSM Overpass (query_osm tool, reused)
@@ -199,28 +199,28 @@ A thin server-side state machine wrapping the existing agent loop — *not* a pa
 
 The agent's system prompt branches behaviour off `current_chapter`. The chapter rail in the UI is a thin reflection of this state — clicking ahead requires the exit condition. State is persisted as JSON on `agent_sessions`.
 
-### 3.4 Soda Straw posture — "every datum the agent surfaces flows through here"
+### 3.4 DataGateway posture — every analytical datum flows through one audited seam
 
-[Soda Straw](https://sodastraw.ai/) is access management for AI agents: an MCP-server frontend that gates per-person, per-agent, per-straw access to data sources, with audit logging. Connectors today are Postgres, Snowflake, Salesforce, and any upstream MCP server.
+The product reaches the REASON tier through one internal module: the **DataGateway**, which runs **parameterized SQL** (asyncpg/psycopg) against the `droomzaak` Postgres schema. This single seam is the audited boundary the debug overlay shows.
 
-We use it as **the canonical ingress for all analytical data the agent reasons over**. One Postgres straw, one connection, one audit log. Every new analytical tool the agent calls is a thin Python wrapper around a Soda Straw MCP `query` call. The agent's existing action tools (`apply_map_actions`, `query_osm`, etc.) stay native — those are *behaviour* tools, not data tools.
+We use it as **the canonical ingress for all analytical data the agent reasons over**. One connection, one audit log. Every new analytical tool the agent calls is a thin Python wrapper around a `DataGateway.query(...)` call — never scattered ad-hoc DB reads, never string-formatted SQL. The agent's existing action tools (`apply_map_actions`, `query_osm`, etc.) stay native — those are *behaviour* tools, not data tools.
 
-This gives the hackathon-winning posture: the debug overlay during the demo shows every analytical reasoning step routed through Soda Straw. Map rendering stays as fast as Map Pilot is today.
+This gives the hackathon-winning posture: the debug overlay during the demo shows every analytical reasoning step routed through the one DataGateway seam. Map rendering stays as fast as Map Pilot is today.
 
-**Stretch:** wrap one or two live APIs (OSM Overpass, Google Places, GIPOD live LDES) as small MCP servers and broker them through Soda Straw too, so the *"everything goes through Soda Straw"* claim becomes literal. Only if Track A has bandwidth past hour 6.
+**Stretch:** bring one or two live APIs (OSM Overpass, Google Places, GIPOD live LDES) under the same DataGateway pattern, so the *"every analytical datum flows through one seam"* claim becomes literal across more sources. Only if Track A has bandwidth past hour 6.
 
 ### 3.5 New agent tools (additions on top of Map Pilot's 16)
 
 | Tool | Role | Backed by |
 |---|---|---|
 | `extract_dream_profile(text)` | LLM-classifier hidden behind a tool — extracts sector, NACE, scale, vibe, neighbourhood, scale signals from one sentence. | OpenAI / Anthropic with constrained output schema. |
-| `peer_benchmarks_statbel(nace, refnis)` | Sector-cohort openings, closings, faillissementen, BTW evolution. | Soda Straw → Postgres → Statbel-derived tables. |
+| `peer_benchmarks_statbel(nace, refnis)` | Sector-cohort openings, closings, faillissementen, BTW evolution. | DataGateway → Postgres → Statbel-derived tables. |
 | `places_search(query, bbox, types)` | Live competitor / niche venue discovery. | Google Places API. |
 | `places_popular_times(place_id)` | Hour-level footfall signal for a venue. | Google Places API (Insights / popular times). |
-| `score_locations(profile, weights)` | Ranks Gent sectors / candidate addresses on demographic + competition + vacancy + transit + rent + disruption. | Soda Straw → Postgres → weighted SQL join. |
-| `rent_benchmark(sector_id, asset_type)` | Median commercial rent + p25 / p75 + n for a sector. | Soda Straw → Postgres → FOD Financiën huurcontracten. |
-| `permit_checklist_for(nace, address, attributes)` | Sector-branched checklist with deep-links, estimated cost, and estimated processing time per item. | Soda Straw → Postgres → `permit_rules` config + `permits_events` evidence. |
-| `subsidies_for(profile, address)` | Eligibility-checked subsidy shortlist. | Soda Straw → Postgres → VLAIO + Stad Gent + federal. |
+| `score_locations(profile, weights)` | Ranks Gent sectors / candidate addresses on demographic + competition + vacancy + transit + rent + disruption. | DataGateway → Postgres → weighted SQL join. |
+| `rent_benchmark(sector_id, asset_type)` | Median commercial rent + p25 / p75 + n for a sector. | DataGateway → Postgres → FOD Financiën huurcontracten. |
+| `permit_checklist_for(nace, address, attributes)` | Sector-branched checklist with deep-links, estimated cost, and estimated processing time per item. | DataGateway → Postgres → `permit_rules` config + `permits_events` evidence. |
+| `subsidies_for(profile, address)` | Eligibility-checked subsidy shortlist. | DataGateway → Postgres → VLAIO + Stad Gent + federal. |
 | `legal_form_advisor(profile)` | Eenmanszaak vs BV/SRL recommendation. | Decision tree, pure Python. |
 | `generate_dream_narrative(...)` | Constrained-style 3-paragraph narrative + Tuesday-morning simulation. | LLM with style guide + two-shot examples. |
 | `compose_package(state)` | Serialises chapter state into the renderer input. | Pure Python. |
@@ -234,7 +234,7 @@ This gives the hackathon-winning posture: the debug overlay during the demo show
 
 ### 3.7 Deployment
 
-A public hostname (Vercel + Render + Fly TBD) so the shareable URL in the package resolves during the pitch. Backend on a single VM near the venue. Secrets pre-provisioned by Friday night: Soda Straw token, OpenAI key, Anthropic key, Google Maps key, OpenRouteService key.
+A public hostname (Vercel + Render + Fly TBD) so the shareable URL in the package resolves during the pitch. Backend on a single VM near the venue. Secrets pre-provisioned by Friday night: Postgres DSN, OpenAI key, Anthropic key, Google Maps key, OpenRouteService key.
 
 ---
 
@@ -261,7 +261,7 @@ Each category becomes one or more Postgres tables in the `droomzaak` schema. The
 - Google Maps Streetview Static API — Streetview thumb for the chosen address in the package (Chapter 5). One call per session. Falls back to a generic "your location" illustration if quota / cost is a concern.
 - MapLibre vector tiles — base map.
 - OpenRouteService isochrones — travel-time catchments.
-- *Stretch:* GIPOD live LDES — real-time road works wow factor if Soda Straw can broker it.
+- *Stretch:* GIPOD live LDES — real-time road works wow factor if the DataGateway can broker it.
 
 ### 4.3 Substitutions for hackathon scope
 
@@ -274,12 +274,12 @@ Each category becomes one or more Postgres tables in the `droomzaak` schema. The
 1. Stand up Postgres 16 (managed: Neon / Supabase / Railway free tier, or Render self-host).
 2. Run a one-shot `dump_duckdb_to_postgres.py` (~50 LOC) over the existing Map Pilot DuckDB + Parquet dumps. Subset to the seven categories.
 3. Hand-curate the `permit_rules` table for horeca + the 5 retail + 3 consultant cases we'll demo.
-4. Register the Postgres database as a Soda Straw source. Document the connection string in `.env.demo`.
+4. Point the DataGateway at the `droomzaak` Postgres (DSN in `.env.demo`).
 5. Smoke-test every new analytical tool from a local MCP client.
 
 ### 4.5 Refresh strategy
 
-Snapshot-and-freeze: take a final dump Friday evening. No live re-ingest during the 12 hours. Predictable demo beats marginal recency. GIPOD live LDES is the one exception if Soda Straw brokers it cleanly.
+Snapshot-and-freeze: take a final dump Friday evening. No live re-ingest during the 12 hours. Predictable demo beats marginal recency. GIPOD live LDES is the one exception if the DataGateway brokers it cleanly.
 
 ---
 
@@ -292,7 +292,7 @@ Snapshot-and-freeze: take a final dump Friday evening. No live re-ingest during 
 | Map + canvas | Reuse Map Pilot canvas. Add chapter rail + Droomkaart. | No new map style work. |
 | Chapter engine | 5-chapter state machine, server-persisted, gated transitions. | No backtracking polish, no cross-session resume beyond what `agent_sessions` already gives. |
 | Agent | Reuse existing loop, swap prompt, add ~12 new tools. | No multi-agent, no escalation policy, no streaming. |
-| Data via Soda Straw | All canonical Postgres tables behind one straw. Every analytical tool routes through it. | No live-API MCP wrappers (stretch only). |
+| Data via the DataGateway | All canonical Postgres tables behind one DataGateway seam (parameterized SQL). Every analytical tool routes through it. | No live-API DataGateway wrappers (stretch only). |
 | Live data | OSM via `query_osm`. Google Places + popular times via new tools. | No GIPOD live (snapshot fine). |
 | Sector coverage | **Horeca branch polished end-to-end.** Retail + consultant: scaffolded — sector recognised, degraded version of Chapters 3 + 4, thinner package. Enough to defend "the engine handles other sectors". | Crafts, e-commerce, regulated professions — recognised but no targeted content. |
 | Package output | Server-rendered HTML at `/pakket/<session_id>`, Print → PDF, shareable URL on public host. | No persistent account, no editable package, no email delivery. |
@@ -303,11 +303,11 @@ Snapshot-and-freeze: take a final dump Friday evening. No live re-ingest during 
 
 ### 5.2 Build sequence — the 12 hours
 
-Pre-event (Friday evening): Postgres load + Soda Straw connection + secrets pre-provisioned + public host deployed. *None of this is Saturday work.*
+Pre-event (Friday evening): Postgres load + DataGateway wiring + secrets pre-provisioned + public host deployed. *None of this is Saturday work.*
 
 | Hour | Track A (backend / agent) | Track B (frontend / canvas) | Track C (content / pitch) |
 |---|---|---|---|
-| 0–2 | Wire Soda Straw MCP client in the agent. Smoke-test each new tool against Postgres. Provision Google Places API client + key. | Chapter rail + Droomkaart shell in React. | Permit-rule catalogue YAML for horeca (the rules we demo, with cost + processing-time estimates per item). |
+| 0–2 | Wire the DataGateway (asyncpg pool) in the agent. Smoke-test each new tool against Postgres. Provision Google Places API client + key. | Chapter rail + Droomkaart shell in React. | Permit-rule catalogue YAML for horeca (the rules we demo, with cost + processing-time estimates per item). |
 | 2–4 | Implement `extract_dream_profile`, `score_locations` (consumes `rent_benchmark` + disruption + competition + transit), `peer_benchmarks_statbel`, `places_search`, `places_popular_times`. | Wire Chapter 1 prompt → state. Wire Chapter 2 dots + cards. | Subsidies eligibility config (VLAIO Startlening, Win-Win, Stad Gent renovatiepremie, KMO-portefeuille). |
 | 4–6 | Implement `permit_checklist_for`, `subsidies_for`, `legal_form_advisor`, `set_chapter_state`. | Wire Chapter 3 scoring overlays + Chapter 4 checklist cards. | Dream-narrative + Tuesday-morning prompt templates with two-shot examples. |
 | 6–8 | Implement `generate_dream_narrative`, `compose_package`. End-to-end Lisa rehearsal. Sofie retail walkthrough as the second demo path. | Package renderer + print stylesheet. | Pitch script + one slide (the rest is the live demo). |
@@ -333,7 +333,7 @@ Pre-event (Friday evening): Postgres load + Soda Straw connection + secrets pre-
 |---|---|
 | Real city need, validated by Stad Gent's own RFP. | Verbatim quote of the city's one-stop-shop ask in the deck. |
 | Map + data + agent fused — first of its kind in Belgium. | Side-by-side: VLAIO subsidiedatabank text-walls vs Droomzaak's map-anchored conversational journey. |
-| Soda Straw at the centre of the data architecture. | Debug overlay showing every agent analytical call routed through Soda Straw. |
+| One audited DataGateway seam at the centre of the data architecture. | Debug overlay showing every agent analytical call routed through the one DataGateway seam. |
 | 60+ open datasets pre-curated, deployable to any Belgian city. | One sentence in the deck + dataset count in the package footer. |
 | Keeps the dream alive. | The Tuesday-morning card + dream narrative read out loud on stage. |
 | Saturday demo is a slice of a much bigger product. | Vision roadmap visible at the close of the pitch. |
@@ -346,7 +346,7 @@ Pre-event (Friday evening): Postgres load + Soda Straw connection + secrets pre-
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Soda Straw is the single dependency for all analytical tools. If the connector hiccups during the demo, every chapter past 1 stalls. | High × Medium | Stand it up Friday, smoke-test every tool, keep a local-Postgres-direct failover code path behind a feature flag — never used unless something breaks live. |
+| The Postgres warehouse + DataGateway is the single dependency for all analytical tools. If it is unhealthy during the demo, every chapter past 1 stalls. | High × Medium | Stand Postgres up Friday, smoke-test every tool through the DataGateway, and verify the warehouse is healthy and reachable before the pitch. |
 | Permit-rule catalogue is hand-curated and may be wrong in edge cases. | High × Medium | Scope rules tight to horeca + 5 retail + 3 consultant cases. Where uncertain, the agent says *"Dit wil je bevestigen bij Stad Gent / FAVV"* — refuses to fake certainty. |
 | KBO addresses are registered seats, not trading addresses. Competitor density may be misleading at street level. | Medium × High | Triangulate with OSM + Google Places. Frame both signals in the demo so jury sees where they agree / disagree. |
 | No open per-address rent. Sector-median rent is a coarse proxy. | Medium × High | Explicitly labelled in the package: *"benchmark voor commerciële panden in deze sector. Voor het exacte pand vraag bij Stad Gent OOG / makelaar."* Never quoted per-address. |
@@ -359,7 +359,7 @@ Pre-event (Friday evening): Postgres load + Soda Straw connection + secrets pre-
 
 ### 6.2 Open items to resolve before / during the hackathon
 
-1. **Soda Straw credentials & connector inventory** — what's pre-connected by Friday afternoon? Is the Postgres straw confirmed available? Any upstream MCP straws already wired by the organisers?
+1. **Postgres / DSN readiness** — is the `droomzaak` Postgres warehouse stood up and confirmed reachable by Friday afternoon? Is the DSN in `.env.demo` and the DataGateway pool wired and smoke-tested?
 2. **Hosting target** — Vercel / Render / Fly? Where does the demo URL live? Who owns DNS / certs?
 3. **Google Maps Places API key + quota** — provisioned before Friday or fall back to OSM-only.
 4. **Team roles** — who owns Track A (agent / tools), Track B (frontend / canvas), Track C (content / pitch)? Solo paths are not viable for the §5.2 sequence — at least 2 builders + 1 content/pitch person.
@@ -372,7 +372,7 @@ Pre-event (Friday evening): Postgres load + Soda Straw connection + secrets pre-
 The Saturday demo is successful if **all** the following hold:
 
 1. Lisa's walkthrough completes from Chapter 1 to a downloaded PDF without operator intervention.
-2. The agent makes at least one Soda Straw call per chapter and the debug overlay shows this.
+2. The agent makes at least one analytical DataGateway call per chapter and the debug overlay shows it routed through the one seam.
 3. Chapter 3 surfaces 3+ scored candidate addresses, each clickable for a "why this one" explanation.
 4. Chapter 4 surfaces 5+ permit / licence items correctly tagged for horeca + 3+ eligible subsidies for Lisa's profile.
 5. Chapter 5 renders the dream narrative, location dossier, niche numbers, permit checklist, subsidies, legal-form recommendation, and hand-off block — on one page, looking like a deliberate artefact, not a database dump.
@@ -397,7 +397,6 @@ This PRD draws on:
 - The broader Map Pilot open-data pipeline catalogue at `open-data/catalogues/` (60+ relevant datasets across data.stad.gent, Statbel, FOD Financiën, KBO, NBB CBSO, GIPOD, VLAIO, buurtmonitor).
 - Founder-journey research (2026-05-28 brainstorming session): Belgian company forms (eenmanszaak vs BV/SRL vs NV), mandatory administrative chronology, sector-specific permits (horeca attest, FAVV, drankvergunningen, omgevingsvergunning klasse, terrasvergunning, Unisono), Ghent-specific permits, Vlaams + federal subsidies, the existing starter-support ecosystem (VLAIO 1700, UNIZO, Voka Bryo, Bedrijvencentrum Gent, OOG, ondernemingsloketten, accounting tools).
 - Competitive scan: VLAIO subsidiedatabank, ondernemen.stad.gent + OOG, startupmap.gent, 1819 / hub.brussels, Companyweb, GraydonCreditsafe, provincies.incijfers.be, Statbel monitor, the eight ondernemingsloketten' starter portals, international analogues (NYC Business Express, SizeUp, Esri Business Analyst, Placer.ai, Stripe Atlas / Doola / Firstbase).
-- Soda Straw capabilities: documented at [sodastraw.ai](https://sodastraw.ai/). Confirmed connectors: Postgres, Snowflake, Salesforce, any upstream MCP server. Capabilities: per-person / per-agent / per-straw access management, audit logging.
 
 ## Appendix B — Glossary
 
@@ -410,5 +409,6 @@ This PRD draws on:
 - **CBSO** — Central Balance Sheet Office at the NBB. Annual accounts repository.
 - **GIPOD** — Generiek Informatieplatform Openbaar Domein. Flemish road-works + public-domain occupation feed.
 - **Omgevingsvergunning** — environmental permit. Class 3 = notification, class 2 = municipal permit, class 1 = provincial permit.
-- **Soda Straw** — MCP-based access management product for AI agents. Mandatory hackathon infrastructure.
+- **DataGateway** — the single internal module the product uses to reach the REASON tier: parameterized SQL (asyncpg/psycopg) over the `droomzaak` Postgres schema. One audited seam; the debug overlay shows every analytical call routed through it.
+- **Soda Straw** — MCP-based access-management product for AI agents. Used here only as a dev-time Claude Code MCP (in `.mcp.json`), not a product runtime dependency.
 - **Map Pilot** — the open-data Ghent map + agent product Droomzaak extends. Foundation provides: agent loop, validation, MapLibre canvas, DuckDB catalogue.

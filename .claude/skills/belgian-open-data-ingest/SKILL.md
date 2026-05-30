@@ -37,7 +37,7 @@ Geocode KBO `business_registry` + Belfirst `business_financials` with the inheri
 After loading, build a per-field profile (top values, distinct count, min/max, operators); drop `top_values` for unique-IDs and opaque content. This is what the agent reads to plan — don't skip it.
 
 ## Warehouse note
-Analytical target = **Postgres** (`droomzaak` schema), loaded Friday from DuckDB/Parquet dumps, reached only via Soda Straw. Render tier stays DuckDB+GeoJSON. Keep the tiers separate (`rules/data-tiers.md`).
+Analytical target = **Postgres** (`droomzaak` schema), loaded Friday from DuckDB/Parquet dumps, reached only via the DataGateway. Render tier stays DuckDB+GeoJSON. Keep the tiers separate (`rules/data-tiers.md`).
 
 ## Verify
 uv only · idempotent re-ingest (size-check downloads, freshness-check cheat sheets) · **never reach real APIs from tests — monkeypatch `httpx`** · print every geo-join match rate.

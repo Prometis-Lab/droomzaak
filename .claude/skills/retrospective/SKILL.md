@@ -11,7 +11,7 @@ Two lineages, merged: our proven session-retro workflow (broad: agents, skills, 
 Review the session. Identify:
 1. **Time sinks** — disproportionate time (repeated fixes, back-and-forth, re-explanations).
 2. **Mistakes** — wrong assumptions, SQL/CRS errors, UI regressions, scope creep, a stale-assumption slip (e.g. reaching for `places_popular_times`).
-3. **What worked** — patterns to reinforce (good agent usage, the ≥8/10 spec gate catching a gap, a clean Soda-Straw-routed tool).
+3. **What worked** — patterns to reinforce (good agent usage, the ≥8/10 spec gate catching a gap, a clean DataGateway-routed tool).
 4. **Repeated instructions** — did the user say the same thing twice? → a missing memory or CLAUDE.md gap.
 5. **Permission/gate friction** — needless prompts, or a gate that only added friction.
 

@@ -4,7 +4,7 @@ Guidance for Claude Code in this repo. **These rules override default behaviour.
 
 ## What we're building
 
-**Droomzaak** ("dream company") guides aspiring entrepreneurs in Ghent through the wall of decisions and paperwork after the first thought of *"I want my own business"* — keeping the dream alive. A five-chapter, map-anchored journey turns one sentence (*"a small vegan bistro near Vrijdagmarkt"*) into a printable *Droomzaak-pakket*. Built at the **Hackers & Ravers** hackathon (Sat 2026-05-30, Wintercircus Ghent, 12h). Required infra: **Soda Straw** MCP. Sponsor **Aikido** runs a security audit.
+**Droomzaak** ("dream company") guides aspiring entrepreneurs in Ghent through the wall of decisions and paperwork after the first thought of *"I want my own business"* — keeping the dream alive. A five-chapter, map-anchored journey turns one sentence (*"a small vegan bistro near Vrijdagmarkt"*) into a printable *Droomzaak-pakket*. Built at the **Hackers & Ravers** hackathon (Sat 2026-05-30, Wintercircus Ghent, 12h). Soda Straw is used as a dev-time Claude Code MCP (in `.mcp.json`), not a product dependency. Sponsor **Aikido** runs a security audit.
 
 - **PRD (vision/architecture):** [`droomzaak-prd.md`](droomzaak-prd.md)
 - **Data plan (data/tools/sources):** [`droomzaak-data-shortlist.md`](droomzaak-data-shortlist.md)
@@ -38,7 +38,7 @@ When they conflict on a data/tool detail, the data-shortlist wins — it post-da
 
 Two-tier data — **this boundary is the pitch** (see [`.claude/rules/data-tiers.md`](.claude/rules/data-tiers.md)):
 - **RENDER:** DuckDB + cached GeoJSON → MapLibre layer cache only. Never the agent's reasoning.
-- **REASON:** Postgres (`droomzaak` schema) → reached **only** through the **Soda Straw** MCP. One straw, one connection, one audit log. The debug overlay shows every analytical call routed through it. Hosted on **Supabase**, mirrored locally under [`supabase/`](supabase/) (schema + RPCs, for local query + redeploy/failover — dev/deploy only, never the agent's read path; see `supabase-schema-sync`).
+- **REASON:** Postgres (`droomzaak` schema) → reached **only** through the internal **DataGateway** (parameterized SQL). One connection, one audit log. The debug overlay shows every analytical call routed through the one seam. Hosted on **Supabase**, mirrored locally under [`supabase/`](supabase/) (schema + RPCs, for local query + redeploy/failover — dev/deploy only, never the agent's read path; see `supabase-schema-sync`).
 
 The agent is a **provider-neutral tool loop** (OpenAI + Anthropic behind one switch) wrapped by a thin **5-chapter state machine** on `agent_sessions`. ~12 analytical/effect tools on top of a base read/action tool surface. Frontend adds chapter rail + Droomkaart sidebar + package renderer.
 
@@ -59,10 +59,10 @@ Brainstorm → Plan/Spec → Spec-critic loop (≥8/10) → Implement → /ship 
 
 ## CRITICAL RULES (override conflicting instructions)
 
-1. **Soda Straw boundary** — analytical data flows **only** through Soda Straw→Postgres; the render tier never feeds reasoning. Behaviour tools stay native. (`rules/data-tiers.md`)
+1. **DataGateway boundary** — analytical data flows **only** through the DataGateway (parameterized SQL) → Postgres; the render tier never feeds reasoning. Behaviour tools stay native. (`rules/data-tiers.md`)
 2. **Parameterized SQL only** — never string-format model/user input into SQL.
 3. **Never fake certainty** — label proxies (rent is a sector proxy, never per-address); where unsure, point to OOG / FAVV / Stad Gent.
-4. **Never reach real APIs in tests** — monkeypatch Soda Straw, Google Places, ORS, the model.
+4. **Never reach real APIs in tests** — monkeypatch the DataGateway, Google Places, ORS, the model.
 5. **uv-managed virtual environments, strictly** — all Python runs in the project's uv venv: `uv venv` / `uv sync` / `uv add` / `uv run python …` / `uv run pytest`. **Never** `pip install`, **never** bare `python`/`python3`, **never** a manual `venv`/`virtualenv`/conda. Commit `uv.lock`. (See the `python-data-scripts` skill / `python-data-engineer` agent.)
 6. **Provider-neutral tool code** — one spec, one handler; never branch on provider inside a tool.
 7. **Sub-agents never run git-write commands** (`.claude/rules/git-operations.md`). Only the main session commits, only via `/ship`.
@@ -78,7 +78,7 @@ Brainstorm → Plan/Spec → Spec-critic loop (≥8/10) → Implement → /ship 
 | `reference-scout` | "how might X be approached / where would Y live" — mine the optional `reference/` implementation for inspiration before building loop/tools/validation/canvas/ingest | haiku |
 | `agent-tool-builder` | implement ONE new agent tool end-to-end to the provider-neutral contract | sonnet |
 | `maplibre-canvas-builder` | new layer/action type + Droomzaak UI (chapter rail, Droomkaart, package renderer) | sonnet |
-| `open-data-ingest-specialist` | Friday data load, Belgian open-data clip/join, permit/subsidy config, Soda Straw registration | sonnet |
+| `open-data-ingest-specialist` | Friday data load, Belgian open-data clip/join, permit/subsidy config, DataGateway/Postgres load | sonnet |
 | `warehouse-schema-expert` | the `droomzaak` schema + the parameterized SQL behind every analytical tool | sonnet |
 | `python-data-engineer` | any Python data-manipulation script (pandas/geopandas/DuckDB, the dump job, geo clip/join) — strict uv venvs, idempotent, monkeypatched tests | sonnet |
 | `code-reviewer` | quality/patterns/security pass (build-gate first) — runs in `/ship` | opus |
@@ -91,7 +91,7 @@ Reviewers/critics are **read-only** (no Edit/Write/git). Proactively dispatch: S
 
 ## Skills — what to reach for
 
-**Project (the contracts):** `add-agent-tool` · `soda-straw-data-tool` · `wire-agent-action-to-canvas` · `chapter-state-machine` · `belgian-open-data-ingest` · `dream-narrative-style` · `supabase-schema-sync`.
+**Project (the contracts):** `add-agent-tool` · `data-tool` · `wire-agent-action-to-canvas` · `chapter-state-machine` · `belgian-open-data-ingest` · `dream-narrative-style` · `supabase-schema-sync`.
 **Authored (cross-cutting):** `writing-implementation-specs` · `writing-handovers` · `security-scan` · `browser-data-curation` · `python-data-scripts` · `retrospective`.
 **Vendored (Apache-2.0, in `skills/vendored/`):** `frontend-design` · `webapp-testing` · `mcp-builder` · `skill-creator` · `claude-api`.
 **Via superpowers plugin:** `brainstorming` · `writing-plans` · `test-driven-development` · `systematic-debugging` · `subagent-driven-development` · `verification-before-completion` · `git-worktrees`.
@@ -100,7 +100,7 @@ Skill auto-activation is imperfect — this table is the backstop. When a task m
 
 | When you're… | Skill |
 |---|---|
-| adding/extending an agent tool | `add-agent-tool` (+ `soda-straw-data-tool` if it reads analytical data) |
+| adding/extending an agent tool | `add-agent-tool` (+ `data-tool` if it reads analytical data) |
 | wiring an agent action to the map / new layer / Droomzaak surface | `wire-agent-action-to-canvas` |
 | building/extending the 5-chapter journey | `chapter-state-machine` |
 | sourcing/clipping/joining a Belgian dataset, or curating permit/subsidy config | `belgian-open-data-ingest` |
@@ -114,7 +114,7 @@ Skill auto-activation is imperfect — this table is the backstop. When a task m
 | before any commit | `security-scan` (inside `/ship`) |
 | Track-B UI polish | `frontend-design` |
 | smoke-testing the chapter flow | `webapp-testing` |
-| wrapping a live API as an MCP (Soda-Straw-brokered stretch) | `mcp-builder` |
+| wrapping a live API as an MCP (stretch) | `mcp-builder` |
 | authoring a new project skill | `skill-creator` |
 | building/optimizing the LLM-agent app or migrating models | `claude-api` |
 
@@ -124,7 +124,7 @@ Skill auto-activation is imperfect — this table is the backstop. When a task m
 
 ## Build sequence (PRD §5.2 — the 12 hours)
 
-Pre-event (Fri): Postgres load + Soda Straw connection + secrets + public host. **0–2** wire Soda Straw client, chapter shell, permit YAML. **2–4** `extract_dream_profile`, `score_locations`, `peer_benchmarks_statbel`, `places_search`. **4–6** `permit_checklist_for`, `subsidies_for`, `legal_form_advisor`, `set_chapter_state`, Ch3–4 overlays. **6–8** `generate_dream_narrative`, `compose_package`, package renderer, rehearsal. **Hour 6: feature freeze.** Tracks: A backend/agent, B frontend/canvas, C content/pitch.
+Pre-event (Fri): Postgres load + DataGateway wiring + secrets + public host. **0–2** wire the DataGateway, chapter shell, permit YAML. **2–4** `extract_dream_profile`, `score_locations`, `peer_benchmarks_statbel`, `places_search`. **4–6** `permit_checklist_for`, `subsidies_for`, `legal_form_advisor`, `set_chapter_state`, Ch3–4 overlays. **6–8** `generate_dream_narrative`, `compose_package`, package renderer, rehearsal. **Hour 6: feature freeze.** Tracks: A backend/agent, B frontend/canvas, C content/pitch.
 
 ## Brand direction (Track B)
 
