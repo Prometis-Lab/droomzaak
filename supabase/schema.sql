@@ -262,3 +262,20 @@ CREATE TABLE IF NOT EXISTS droomzaak.demand_proxies_sector (
     study_seats           DOUBLE PRECISION
 );
 CREATE INDEX IF NOT EXISTS demand_proxies_sector_nis9_idx ON droomzaak.demand_proxies_sector (nis9_code);
+
+-- Q4 curated Chapter-4 permit decision table (NACE × company-attributes → permit/url/cost/lead_time).
+-- applies_when/cost are JSON-encoded TEXT (parsed in Python by permit_checklist_for — no SQL-side JSON).
+-- nace_prefix/depends_on are TEXT[] (Postgres arrays). GIN index on nace_prefix for @>/&& containment.
+CREATE TABLE IF NOT EXISTS droomzaak.permit_rules (
+    permit         TEXT,
+    nace_prefix    TEXT[],
+    applies_when   TEXT,
+    official_url   TEXT,
+    explainer      TEXT,
+    cost           TEXT,
+    lead_time_days BIGINT,
+    depends_on     TEXT[],
+    status         TEXT,
+    source_url     TEXT
+);
+CREATE INDEX IF NOT EXISTS permit_rules_nace_idx ON droomzaak.permit_rules USING GIN (nace_prefix);

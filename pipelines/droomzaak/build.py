@@ -31,6 +31,7 @@ ORDER = [
     "demand_proxies",
     "disruption",
     "permits",
+    "permit_rules",
     "gent_points",
     "kbo_history",
 ]

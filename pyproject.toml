@@ -4,6 +4,14 @@ version = "0.1.0"
 description = "Droomzaak — a five-chapter, map-anchored founder journey for Ghent (app + Belgian open-data pipeline)."
 requires-python = ">=3.13"
 dependencies = [
+    # data pipeline: clean (DuckDB) + load (DuckDB postgres extension)
+    "duckdb==1.4.3",
+    "pyproj==3.7.2",
+    "shapely==2.1.2",
+    "pandas[parquet]>=3.0.3",
+    "loguru>=0.7.3",
+    "python-dotenv==1.2.2",
+    "pyyaml>=6.0.3",
     # app runtime (FastAPI + provider-neutral agent loop)
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",

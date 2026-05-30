@@ -1,7 +1,7 @@
 # Droomzaak warehouse — quick reference
 
 Hand-maintained lookup for the `droomzaak` schema on Supabase (project `knwnjhbdmmdkqnmakqkr`).
-**Live as of 2026-05-30** — 18 tables, 317,699 rows, loaded by `pipelines/droomzaak/load_to_supabase.py`.
+**Live as of 2026-05-30** — 19 tables loaded by `pipelines/droomzaak/load_to_supabase.py`.
 Ground truth: `supabase/migrations/` + `supabase/schema.sql`; full join contract + measured hit-rates in
 `pipelines/droomzaak/joins.md`. Join keys: **NIS9 statistical sector**, **REFNIS 44021**, **NACE** (5/4/2-digit), **`ent`** (10-digit enterprise no.), **wijk id**.
 
@@ -28,12 +28,12 @@ Ground truth: `supabase/migrations/` + `supabase/schema.sql`; full join contract
 | `geo_sectors` | 254 | `nis9_code`, `wijknr` | joins / map spine | Gent ODS; `geom_wkb` = **WKB bytea** (usable polygons live in the render tier) |
 | `geo_wijken` | 25 | `wijknr` | joins / map | Gent ODS; `geom_wkb` = WKB bytea |
 | `kbo_geocode` | 93,612 | address 5-tuple → `nis9_code` | build-time geocode bridge | KBO academic — **no redistribution**; intermediate, not a per-question join path |
+| `permit_rules` | 12 rules | `permit` (TEXT), `nace_prefix` (TEXT[]), `status` | permit_checklist_for (Q4) | Curated YAML → Parquet → Postgres. `nace_prefix`/`depends_on` are **TEXT[] (Postgres arrays)**; `applies_when`/`cost` are **JSON-encoded TEXT** (parsed in Python, not SQL). GIN index `permit_rules_nace_idx` on `nace_prefix` for `@>`/`&&` containment queries. `status` values: `active`, `ended_2025`. |
 
 ## Not yet built (planned — see droomzaak-data-shortlist.md §2 / §5)
 | Table | Feeds | Status |
 |---|---|---|
 | `zoning` | Ch4 "may I open here" | Gewestplan + RUP DSI — **not on disk yet** |
-| `permit_rules` | permit_checklist_for | curated NACE × attributes → permit/url/cost/lead_time — **not curated yet** |
 | `subsidies` | subsidies_for | curated; `status: active\|ended_2025` — **not curated yet** |
 | `sector_attributes` | Ch1 questions + Ch4 branching | the "company topology" — **not built** |
 

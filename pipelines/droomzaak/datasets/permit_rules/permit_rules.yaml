@@ -1,0 +1,201 @@
+# permit_rules.yaml — Droomzaak Chapter-4 permit decision table (curated, frozen).
+#
+# Source-of-truth artifact: hand-authored + human-verified from official sources, never
+# scraped at runtime. Each rule carries a `source_url` for provenance. See
+# docs/specs/2026-05-30-permit-rules-curated-config-design.md.
+#
+# `attributes` is the inline vocabulary `applies_when` keys off. The future canonical
+# sector_attributes.yaml MUST adopt these keys verbatim.
+#
+# CURATION STATUS (2026-05-30):
+#   Horeca catalogue (NACE 56): 9 rules — research-verified from §4a + WebFetch.
+#   Retail thin scaffold (NACE 47): 2 rules.
+#   Consultant scaffold (NACE 70/74): KBO baseline only (see note below).
+#   PENDING HUMAN BROWSER-VERIFICATION (WAF-blocked sources):
+#     - Omgevingsvergunning milieu (VLAREM): vlaremwegwijzer.navigator.emis.vito.be
+#     - Sterkedrankvergunning stad.gent: drankvergunning-vaste-drankgelegenheid returned 403
+#     - Terrasvergunning URL confirmed via search; cost simulator URL confirmed.
+#
+# applies_when condition grammar:
+#   {}                     → always applies (e.g. KBO baseline).
+#   attr: [a, b]           → attribute value ∈ list (e.g. serves_alcohol: [sterke]).
+#   attr: true             → boolean attribute is true (e.g. hot_kitchen_frying: true).
+#   attr: {gte: N}         → numeric threshold (e.g. capacity_seats: {gte: 100}).
+
+attributes:
+  horeca:                       # NACE 56.*
+    serves_alcohol: [none, gegiste, sterke]
+    seating: [none, indoor, terrace]
+    takeaway_only: bool
+    hot_kitchen_frying: bool
+    capacity_seats: int
+    renovation: bool
+    music: bool
+  retail:                       # NACE 47.*
+    food_retail: bool
+    signage: bool
+  consultant:                   # NACE 70/74.*
+    # Home-based consultants (NACE 70/74) typically need no sector permit beyond the
+    # KBO/BTW baseline. No dedicated rules are added here — the baseline covers them.
+    # Exception: if they employ staff, social secretariat registration is required (out of scope).
+    home_based: bool
+    employees: int
+
+rules:
+  # ── BASELINE (all sectors) ────────────────────────────────────────────────────────────
+  - permit: "KBO-inschrijving + BTW-activering"
+    nace_prefix: ["56", "47", "70", "74"]
+    applies_when: {}                       # every business
+    # URL corrected 2026-05-30 (old path 404'd); §4a-cited + WebSearch-confirmed canonical page.
+    official_url: "https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming-oprichten/belangrijkste-stappen-om-een/te-ondernemen-stappen-bij-een"
+    source_url: "https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming-oprichten/belangrijkste-stappen-om-een/te-ondernemen-stappen-bij-een"
+    explainer: "Inschrijving in de Kruispuntbank van Ondernemingen via een erkend ondernemingsloket, daarna BTW-activering bij MyMinfin. Consultants (NACE 70/74) die thuiswerken en geen personeel hebben, hebben doorgaans geen bijkomende sectorvergunning nodig."
+    cost: {type: fixed, eur: 105.50, period: one_time, approx: false, note: "KBO-loket inschrijving 2026; BTW gratis via MyMinfin"}
+    lead_time_days: 1
+    depends_on: []
+    status: active
+
+  # ── HORECA (NACE 56) — verplicht voor alle zaken ──────────────────────────────────────
+  - permit: "Horeca-attest"
+    nace_prefix: ["56"]
+    applies_when: {}                       # any horeca
+    # URL confirmed 200 via WebFetch (2026-05-30)
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/horeca-attest"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/horeca-attest"
+    explainer: "Kwaliteitslabel uitgereikt door Stad Gent dat bevestigt dat u een horecazaak mag uitbaten. Vermeldt of alcoholische dranken mogen worden geschonken en het verplichte sluitingsuur. Aanvragen via OOG (Ondersteuningspunt Ondernemers Gent) ten minste 30 werkdagen voor opening (45 werkdagen voor zaken ≥100 m²). Bundelt o.a. de brandveiligheidsmelding bij de brandweer."
+    cost: {type: none_published}
+    lead_time_days: 45
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active
+
+  # ── FAVV toelating (horeca — verplicht voor alle zaken die voeding hanteren) ──────────
+  - permit: "FAVV-toelating"
+    nace_prefix: ["56"]
+    applies_when: {}                       # all horeca handle food
+    # URL confirmed 200 via WebFetch (2026-05-30); heffing €100.58 confirmed via §4a + search
+    official_url: "https://www.favv-afsca.be/nl/themas/starters/"
+    source_url: "https://www.favv-afsca.be/nl/themas/starters/"
+    explainer: "Horecazaken die voeding bereiden of serveren hebben een FAVV-toelating (of -registratie) nodig. Registratie via Foodweb is gratis; de jaarlijkse heffing voor een horecazaak met toelating bedraagt ±€100,58 (tarief 2025, jaarlijks geïndexeerd). Aanvraag ten minste 30 dagen vóór opening."
+    cost: {type: fixed, eur: 100.58, period: annual, approx: true, note: "heffing starter 2025; registratie zelf is gratis via Foodweb"}
+    lead_time_days: 30
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active
+
+  # ── HORECA — alcohol ──────────────────────────────────────────────────────────────────
+  - permit: "Drankvergunning gegiste dranken"
+    nace_prefix: ["56"]
+    applies_when: {serves_alcohol: [gegiste, sterke]}
+    # URL aligned 2026-05-30 to the canonical vaste-drankgelegenheid page (WebSearch-confirmed live);
+    # NOTE: that page states one drankvergunning covers BOTH gegiste + sterke, and for horeca is
+    # folded into the horeca-attest — a nuance vs §4a's two-permit split; flagged for human verify.
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-voor-ondernemers/drankvergunning-vaste-drankgelegenheid"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-voor-ondernemers/drankvergunning-vaste-drankgelegenheid"
+    explainer: "Vergunning voor het schenken van gegiste dranken (bier en wijn) in een vaste drankgelegenheid. Vereist bij iedere horecazaak die alcohol serveert. Aanvraag bij Stad Gent; geen gepubliceerde kostprijs."
+    cost: {type: none_published}
+    lead_time_days: 30
+    depends_on: ["Horeca-attest"]
+    status: active
+
+  - permit: "Sterkedrankvergunning"
+    nace_prefix: ["56"]
+    applies_when: {serves_alcohol: [sterke]}
+    # Confirmed via WebSearch (2026-05-30); direct page returned 403 (WAF-blocked) — PENDING human browser-verification
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-voor-ondernemers/drankvergunning-vaste-drankgelegenheid"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-voor-ondernemers/drankvergunning-vaste-drankgelegenheid"
+    explainer: "Machtiging van het college van burgemeester en schepenen vereist voor het schenken van sterke dranken (gedistilleerd, bijv. gin-tonic, cocktails) in een vaste drankgelegenheid. Vereist een blanco strafregister (uittreksel model 596, artikel 596.1-8 dranken). Aanvraag via Stad Gent; geen gepubliceerde kostprijs."
+    cost: {type: none_published}
+    lead_time_days: 45
+    depends_on: ["Horeca-attest"]
+    status: active
+
+  # ── HORECA — milieu/omgeving ──────────────────────────────────────────────────────────
+  - permit: "Omgevingsvergunning (milieu — frituur/koeling)"
+    nace_prefix: ["56"]
+    applies_when: {hot_kitchen_frying: true}
+    # WAF-BLOCKED / JS-rendered — DO NOT WebFetch. PENDING human browser-verification via browser-data-curation.
+    # Source: VLAREM-wegwijzer + data-shortlist §4a (2026-05-29).
+    official_url: "https://vlaremwegwijzer.navigator.emis.vito.be"
+    source_url: "https://vlaremwegwijzer.navigator.emis.vito.be"
+    explainer: "Frituren genereert VLAREM-ingedeelde activiteiten: vetdampen → rubriek 45.4.d; professionele koeling ≥5 kW → rubriek 16.3.2°. Klasse 3 (melding) of klasse 2 (vergunning) afhankelijk van de specifieke capaciteit. Klasse-2-vergunning: omgevingsloket.be. Controleer uw situatie via de VLAREM-wegwijzer."
+    cost: {type: simulator, url: "https://vlaremwegwijzer.navigator.emis.vito.be"}
+    lead_time_days: 105
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active
+
+  # ── HORECA — terras ───────────────────────────────────────────────────────────────────
+  - permit: "Terrasvergunning"
+    nace_prefix: ["56"]
+    applies_when: {seating: [terrace]}
+    # URL confirmed 200 via WebFetch (2026-05-30); cost is per m²/zone — no fixed number published
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/terrassen-gent/vergunning-voor-het-plaatsen-van-een-horecaterras-op-het-openbaar-domein"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/terrassen-gent/vergunning-voor-het-plaatsen-van-een-horecaterras-op-het-openbaar-domein"
+    explainer: "Terras op het openbaar domein vereist een vergunning van de afdeling Innames Publieke Ruimte (IPR). Aanvraag via innames.stad.gent. Stad Gent int jaarlijkse belasting op het terras (tarief afhankelijk van m², zone en periode; pop-upterrassen krijgen 20% korting). Behandelingstermijn: 30 dagen. Vanaf 1 januari 2026 is dag 1 belastingvrij."
+    cost: {type: simulator, url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/terrassen-gent"}
+    lead_time_days: 30
+    depends_on: ["Horeca-attest"]
+    status: active
+
+  # ── HORECA — brandveiligheid (≥100 m²) ───────────────────────────────────────────────
+  - permit: "Brandveiligheidsattest"
+    nace_prefix: ["56"]
+    applies_when: {capacity_seats: {gte: 100}}
+    # Folded into the horeca-attest track voor grote zaken; see also brandweerzonecentrum.be.
+    # URL confirmed 200 via WebFetch (horeca-attest page explicitly mentions ≥100 m² requirement).
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/horeca-attest"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/horeca/horeca-attest"
+    explainer: "Horecazaken met een oppervlakte van 100 m² of meer (of grotere bezettingscapaciteit) zijn verplicht een brandveiligheidsattest aan te vragen bij de brandweer vóór de opening. De controle is onderdeel van het horeca-attest-dossier. Aansprakelijkheidsverzekering brand/ontploffing verplicht vanaf 50 m². Geen gepubliceerde kostprijs voor het attest zelf."
+    cost: {type: none_published}
+    lead_time_days: 45
+    depends_on: ["Horeca-attest"]
+    status: active
+
+  # ── HORECA — EPB (renovatie) ──────────────────────────────────────────────────────────
+  - permit: "EPB-aangifte"
+    nace_prefix: ["56"]
+    applies_when: {renovation: true}
+    # URL confirmed 200 via WebFetch (2026-05-30)
+    official_url: "https://www.vlaanderen.be/epb-eisen"
+    source_url: "https://www.vlaanderen.be/epb-eisen"
+    explainer: "Bij renovatiewerken die een omgevingsvergunning of stedenbouwkundige melding vereisen, geldt de EPB-regelgeving (Energieprestaties en Binnenklimaat). De bouwheer stelt een EPB-verslaggever aan die vóór de werken een startverklaring indient en na de werken (max. 5 jaar na vergunning) een EPB-aangifte. Kost van de verslaggever is marktgebaseerd (geen gepubliceerd tarief)."
+    cost: {type: simulator, url: "https://www.vlaanderen.be/epb-eisen"}
+    lead_time_days: 30
+    depends_on: []
+    status: active
+
+  # ── HORECA — muziek ───────────────────────────────────────────────────────────────────
+  - permit: "Unisono (SABAM + billijke vergoeding)"
+    nace_prefix: ["56", "47"]
+    applies_when: {music: true}
+    official_url: "https://www.unisono.be"
+    source_url: "https://www.unisono.be"
+    explainer: "Vergoeding voor publiek afgespeelde muziek (achtergrondmuziek, live of radio). Bundelt SABAM (auteursrechten) en billijke vergoeding (naburige rechten) in één aangifte via Unisono.be. Bedrag via de officiële simulator (afhankelijk van m²/type zaak)."
+    cost: {type: simulator, url: "https://www.unisono.be/nl/tarieven-en-simulatoren"}
+    lead_time_days: 0
+    depends_on: []
+    status: active
+
+  # ── RETAIL (NACE 47) — voeding ────────────────────────────────────────────────────────
+  - permit: "FAVV-registratie (retail)"
+    nace_prefix: ["47"]
+    applies_when: {food_retail: true}
+    # URL confirmed (same FAVV starters page); heffing confirmed via §4a + search
+    official_url: "https://www.favv-afsca.be/nl/themas/starters/"
+    source_url: "https://www.favv-afsca.be/nl/themas/starters/"
+    explainer: "Voedingswinkels (bijv. traiteur, biowinkel, bakker) hebben een FAVV-toelating of -registratie nodig. Registratie via Foodweb is gratis; de jaarlijkse heffing bedraagt ±€100,58 (tarief 2025, geïndexeerd). Aanvraag ten minste 30 dagen vóór opening."
+    cost: {type: fixed, eur: 100.58, period: annual, approx: true, note: "heffing 2025; registratie gratis via Foodweb"}
+    lead_time_days: 30
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active
+
+  # ── RETAIL (NACE 47) — signalisatie ──────────────────────────────────────────────────
+  - permit: "Uithangbord / signalisatievergunning"
+    nace_prefix: ["47"]
+    applies_when: {signage: true}
+    # URL confirmed 200 via WebFetch (2026-05-30). Vergunning is gratis (niet belastingplichtig).
+    official_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/sectoroverschrijdend/vergunningen-inname-openbaar-domein-voor-je-zaak/vergunning-voor-het-plaatsen-van-een-uithangbord-uitstek-ander-gevelelement-boven-de-openbare-weg"
+    source_url: "https://stad.gent/nl/ondernemen/vergunningen-en-regelgeving-voor-ondernemers/sectoroverschrijdend/vergunningen-inname-openbaar-domein-voor-je-zaak/vergunning-voor-het-plaatsen-van-een-uithangbord-uitstek-ander-gevelelement-boven-de-openbare-weg"
+    explainer: "Vergunning voor het plaatsen van een uithangbord of ander uitstek aan de gevel boven de openbare weg. Voorwaarden: bevestigd aan de gevel, niet lichtgevend (spots toegestaan), geen merknamen, oppervlakte <4 m². De vergunning zelf is kosteloos. Aanvraag ten minste 31 dagen vóór plaatsing. Voldoet het uitstek niet aan de voorwaarden, dan is een omgevingsvergunning vereist."
+    cost: {type: fixed, eur: 0, period: one_time, approx: false, note: "vergunning is niet belastingplichtig (gratis)"}
+    lead_time_days: 31
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active

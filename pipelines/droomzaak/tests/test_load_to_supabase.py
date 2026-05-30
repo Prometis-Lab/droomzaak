@@ -97,3 +97,41 @@ def test_column_drift_raises(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="drifted"):
         loader.load_canonical(con, "business_registry")
+
+
+def _write_permit_rules_fixture(path: Path) -> None:
+    con = duckdb.connect()
+    con.execute(f"""
+        COPY (
+            SELECT * FROM (VALUES
+                ('KBO', ['56','47'], '{{}}', 'https://e/x', 'baseline',
+                 '{{"type":"fixed","eur":105.5}}', 1, [], 'active', 'https://e/x'),
+                ('Horeca-attest', ['56'], '{{}}', 'https://s/h', 'umbrella',
+                 '{{"type":"none_published"}}', 45, ['KBO'], 'active', 'https://s/h')
+            ) AS t(permit, nace_prefix, applies_when, official_url, explainer,
+                   cost, lead_time_days, depends_on, status, source_url)
+        ) TO '{path}' (FORMAT PARQUET)
+    """)
+
+
+def _permit_rules_target(con: duckdb.DuckDBPyConnection) -> None:
+    con.execute("ATTACH ':memory:' AS pg")
+    con.execute("CREATE SCHEMA pg.droomzaak")
+    con.execute("""
+        CREATE TABLE pg.droomzaak.permit_rules (
+            permit VARCHAR, nace_prefix VARCHAR[], applies_when VARCHAR,
+            official_url VARCHAR, explainer VARCHAR, cost VARCHAR,
+            lead_time_days BIGINT, depends_on VARCHAR[], status VARCHAR, source_url VARCHAR
+        )
+    """)
+
+
+def test_permit_rules_load_is_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr(loader, "CANONICAL", tmp_path)
+    _write_permit_rules_fixture(tmp_path / "permit_rules.parquet")
+
+    con = duckdb.connect()
+    _permit_rules_target(con)
+
+    assert loader.load_canonical(con, "permit_rules") == 2
+    assert loader.load_canonical(con, "permit_rules") == 2  # DELETE+INSERT, no dupes
