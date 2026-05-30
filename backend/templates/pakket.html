@@ -132,6 +132,25 @@
   </section>
   {% endif %}
 
+  {% if dream_facts %}
+  <section class="dz-block">
+    <h2>De droom</h2>
+    <dl class="dz-facts">
+      {% for fact in dream_facts %}<dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd>{% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+
+  {% if niche_facts %}
+  <section class="dz-block">
+    <h2>Niche</h2>
+    <dl class="dz-facts">
+      {% for fact in niche_facts %}<dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd>{% endfor %}
+    </dl>
+    {% if niche_note %}<p class="dz-proxy">{{ niche_note }}</p>{% endif %}
+  </section>
+  {% endif %}
+
   {% if chosen_location %}
   <section class="dz-block">
     <h2>De plek</h2>
