@@ -103,6 +103,39 @@ async def test_peer_benchmarks_summary(stub_gateway):
     assert "vat" in out["rows"] and "starters_by_year" in out["rows"]
 
 
+async def test_competition_density_builds_heatmap_dataset(stub_gateway):
+    # One gateway call returns per-sector counts (incl. an empty sector = room).
+    stub_gateway.append([
+        {"nis9_code": "44021A35K", "sectornaam": "station", "wijk_nl": "Noord", "comp_count": 12},
+        {"nis9_code": "44021G00K", "sectornaam": "ledeberg", "wijk_nl": "Ledeberg", "comp_count": 4},
+        {"nis9_code": "44021E10K", "sectornaam": "wondelgem", "wijk_nl": "Wondelgem", "comp_count": 0},
+    ])
+    run = _run()
+    out = await droomzaak_tools.HANDLERS["competition_density"](
+        {"nace_code": "56.101"}, run)
+    assert out["data_available"] is True
+    assert out["total_competitors"] == 16
+    assert out["n_sectors_empty"] == 1
+    assert out["hottest_sectors"][0]["nis9_code"] == "44021A35K"  # sorted desc by count
+    # The render-tier dataset carries per-sector scores (field 'score') incl. the zero.
+    ds = run.datasets[out["dataset_id"]]
+    assert {s["nis9_code"]: s["score"] for s in ds["scores"]}["44021E10K"] == 0
+    assert len(ds["scores"]) == 3
+
+
+async def test_competition_density_zero_total_no_dataset(stub_gateway):
+    # No registered peers anywhere → honest, no meaningless flat heatmap.
+    stub_gateway.append([
+        {"nis9_code": "44021A35K", "sectornaam": "station", "wijk_nl": "Noord", "comp_count": 0},
+    ])
+    run = _run()
+    out = await droomzaak_tools.HANDLERS["competition_density"](
+        {"nace_code": "99.999"}, run)
+    assert out["data_available"] is False
+    assert out["total_competitors"] == 0
+    assert run.datasets == {}
+
+
 async def test_permit_checklist_excludes_alcohol(stub_gateway):
     # permit_checklist_for is now a YAML-config tool — it does NOT call the gateway.
     # stub_gateway is unused here; the test verifies YAML-based behavior.

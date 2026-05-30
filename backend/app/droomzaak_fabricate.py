@@ -20,6 +20,10 @@ Shape contract (must stay in sync with droomzaak_tools.py handlers):
                       summary keys: active_count_latest, growth_3y_pct,
                       bankruptcies_latest, bankruptcies_latest_year,
                       starters_recent, stops_recent, scope_note
+  competition_density → scores: [{nis9_code, score}]; summary keys: dataset_id,
+                      data_available, nace2, total_competitors,
+                      n_sectors_with_competition, n_sectors_empty, hottest_sectors,
+                      label_nl, caveat_nl
   score_locations  → ranked items have: nis9_code, sector_id (= nis9_code),
                       sector_name_nl, wijk_nl, score, rank
   rent_benchmark   → nis9_code (not sector_id), property_type_used, match_level,
@@ -78,6 +82,53 @@ def peer_benchmarks(nace_code: str, refnis: str) -> dict[str, Any]:
         ),
     }
     return _wrap({"nace_code": nace_code, "refnis": refnis, "rows": rows, "summary": summary})
+
+
+# ── competition_density ───────────────────────────────────────────────────────
+
+def competition_density(nace_code: str) -> dict[str, Any]:
+    """Per-sector competitor counts: a few hotspots, a long tail, and empty sectors.
+
+    `scores` mirrors the real handler's run.datasets payload (nis9_code → count on
+    field 'score'); the remaining keys mirror the handler's return value.
+    """
+    n5 = nace_code.replace(".", "").replace(" ", "")
+    nace2 = n5[:2] if len(n5) >= 2 else n5
+    rows = [
+        ("44021A35K", "Station Gent-Sint-Pieters", "Stationsbuurt-Noord", 18),
+        ("44021A23K", "Koning Albertpark",         "Binnenstad",          14),
+        ("44021A00K", "Kuip van Gent",             "Binnenstad",          12),
+        ("44021G00K", "Centrum Ledeberg",          "Ledeberg",             7),
+        ("44021B33K", "Sterre",                    "Stationsbuurt-Zuid",   5),
+        ("44021B44K", "Zone Nieuw Gent",           "Nieuw Gent - Uz",      3),
+        ("44021C12K", "Rabot",                     "Rabot - Blaisantvest", 2),
+        ("44021D21K", "Sint-Amandsberg Centrum",   "Sint-Amandsberg",      1),
+        ("44021E10K", "Wondelgem Dorp",            "Wondelgem",            0),
+        ("44021F05K", "Drongen",                   "Drongen",              0),
+        ("44021H08K", "Oostakker",                 "Oostakker",            0),
+        ("44021J03K", "Mariakerke",                "Mariakerke",           0),
+    ]
+    scores = [{"nis9_code": n, "score": c} for (n, _s, _w, c) in rows]
+    total = sum(c for *_rest, c in rows)
+    n_active = sum(1 for *_rest, c in rows if c > 0)
+    n_room = sum(1 for *_rest, c in rows if c == 0)
+    hottest = [{"nis9_code": n, "sector_name_nl": s, "wijk_nl": w, "count": c}
+               for (n, s, w, c) in rows if c > 0][:5]
+    return _wrap({
+        "dataset_id": "competition-density-DEMO",
+        "data_available": True,
+        "nace2": nace2,
+        "total_competitors": total,
+        "n_sectors_with_competition": n_active,
+        "n_sectors_empty": n_room,
+        "hottest_sectors": hottest,
+        "scores": scores,
+        "label_nl": (
+            f"{total} bestaande zaken in NACE-groep {nace2} over {n_active} Gentse sectoren; "
+            f"{n_room} sectoren nog leeg in deze niche."),
+        "caveat_nl": (
+            "Dichtheid telt KBO-registraties — geen maat voor kwaliteit of omzet."),
+    })
 
 
 # ── score_locations ───────────────────────────────────────────────────────────

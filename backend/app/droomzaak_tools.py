@@ -1,7 +1,8 @@
-"""The 11 Droomzaak tools.
+"""The 12 Droomzaak tools.
 
 Data-tier boundary (data-tiers.md):
-  ANALYTICAL tools (peer_benchmarks_statbel, score_locations, rent_benchmark)
+  ANALYTICAL tools (peer_benchmarks_statbel, competition_density, score_locations,
+                    rent_benchmark)
     → thin wrappers around gateway.query(sql, [params], tool_name="...")
     → return {error, hint} envelope on gateway failure, or fabricate fallback
       when settings.DROOMZAAK_DEV_FABRICATE is on.
@@ -149,6 +150,20 @@ def tool_specs() -> list[dict]:
              "dream_profile": {"type": "object"}, "weights": {"type": "object"},
              "top_n": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}},
              "required": ["dream_profile"]}},
+        {"name": "competition_density",
+         "description": (
+             "Per-sector count of existing businesses in a NACE-2 group across Gent's "
+             "statistical sectors → a transient competition-density- layer (numeric field "
+             "'score') the frontend paints as a density heatmap: hotspots where the niche "
+             "already concentrates vs. empty sectors with room. Chapter 2 (Niche). "
+             "DataGateway → Postgres (droomzaak.business_registry). Returns total, the "
+             "hottest sectors, and how many sectors are empty. Density counts KBO "
+             "registrations — NOT a measure of quality or revenue."
+         ),
+         "input_schema": {"type": "object", "properties": {
+             "nace_code": {"type": "string"},
+             "top_n": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}},
+             "required": ["nace_code"]}},
         {"name": "rent_benchmark",
          "description": (
              "Median residential SALE price (€ total, NOT €/m², NOT rent) for a statistical "
@@ -522,6 +537,107 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
             "Demografische match + transit − concurrentie − huurproxy − verstoring "
             "(min-max genormaliseerd per sector; leegstand weggevallen — geen bron)"
         ),
+    }
+
+
+# ── competition_density ───────────────────────────────────────────────────────
+
+# Per-sector competitor count for one NACE-2 group across every Gent sector.
+# LEFT JOIN from geo_sectors so empty sectors stay in the result as comp_count 0 —
+# the render tier needs the whole city to show the "room" (cold) end of the ramp.
+_SQL_COMPETITION_DENSITY = """
+WITH competition AS (
+    SELECT nis9_code, COUNT(*) AS comp_count
+    FROM droomzaak.business_registry
+    WHERE LEFT(nace5, 2) = $1
+    GROUP BY nis9_code
+)
+SELECT
+    g.nis9_code,
+    g.sectornaam,
+    w.wijk                          AS wijk_nl,
+    COALESCE(c.comp_count, 0)::int  AS comp_count
+FROM droomzaak.geo_sectors       g
+LEFT JOIN droomzaak.geo_wijken   w ON w.wijknr    = g.wijknr
+LEFT JOIN competition            c ON c.nis9_code = g.nis9_code
+ORDER BY g.nis9_code
+""".strip()
+
+
+async def handle_competition_density(args: dict, run: AgentRun) -> dict:
+    nace_raw = args.get("nace_code") or ""
+    top_n = int(args.get("top_n", 5))
+    nace2 = _nace2(nace_raw)
+
+    try:
+        rows = await gateway.query(
+            _SQL_COMPETITION_DENSITY, [nace2], tool_name="competition_density"
+        )
+    except (DataGatewayUnavailable, Exception) as exc:
+        if settings.DROOMZAAK_DEV_FABRICATE:
+            fab = droomzaak_fabricate.competition_density(nace_raw)
+            run.datasets[fab["dataset_id"]] = {
+                "dataset_id": fab["dataset_id"],
+                "feature_count": len(fab["scores"]),
+                "scores": fab["scores"],
+            }
+            return {k: v for k, v in fab.items() if k != "scores"}
+        return _gw_error(exc)
+
+    if not rows:
+        return {"error": "competition_density: geen sectordata beschikbaar",
+                "hint": "Controleer de warehouse-verbinding."}
+
+    # Per-sector counts for the render tier (field 'score' so the existing heatmap
+    # join paints them); zeros included so empty sectors render at the cold end.
+    scores = [{"nis9_code": r["nis9_code"], "score": int(r["comp_count"])} for r in rows]
+    total = sum(s["score"] for s in scores)
+    n_active = sum(1 for s in scores if s["score"] > 0)
+    n_room = sum(1 for s in scores if s["score"] == 0)
+
+    if total == 0:
+        # No registered peers anywhere — don't paint a meaningless flat map; be honest.
+        return {
+            "data_available": False,
+            "total_competitors": 0,
+            "nace2": nace2,
+            "label_nl": "Geen geregistreerde zaken in deze NACE-groep in Gent gevonden.",
+            "caveat_nl": (
+                "Dit kan betekenen dat de niche heel dun bezet is — of dat de registratie "
+                "onder een andere NACE-code valt. Bevestig bij Stad Gent / KBO."),
+        }
+
+    hottest = sorted(
+        ({"nis9_code": r["nis9_code"],
+          "sector_name_nl": (r.get("sectornaam") or r["nis9_code"]).title(),
+          "wijk_nl": r.get("wijk_nl") or "",
+          "count": int(r["comp_count"])} for r in rows if int(r["comp_count"]) > 0),
+        key=lambda x: x["count"], reverse=True,
+    )[:top_n]
+
+    dataset_id = f"competition-density-{_hash(nace2)}"
+    run.datasets[dataset_id] = {
+        "dataset_id": dataset_id,
+        "feature_count": len(scores),
+        # nis9_code → competitor count for the render tier: the frontend joins these
+        # onto the cached sector polygons and paints a density heatmap on field 'score'.
+        # Geometry never crosses the gateway.
+        "scores": scores,
+    }
+    return {
+        "dataset_id": dataset_id,
+        "data_available": True,
+        "nace2": nace2,
+        "total_competitors": total,
+        "n_sectors_with_competition": n_active,
+        "n_sectors_empty": n_room,
+        "hottest_sectors": hottest,
+        "label_nl": (
+            f"{total} bestaande zaken in NACE-groep {nace2} over {n_active} Gentse sectoren; "
+            f"{n_room} sectoren zonder enige geregistreerde zaak in deze niche."),
+        "caveat_nl": (
+            "Dichtheid telt KBO-registraties — geen maat voor kwaliteit of omzet. Een lege "
+            "sector kan ruimte betekenen óf gewoon weinig passantenstroom."),
     }
 
 
@@ -943,6 +1059,7 @@ async def handle_query_warehouse(args: dict, run: AgentRun) -> dict:
 HANDLERS = {
     "extract_dream_profile":    handle_extract_dream_profile,
     "peer_benchmarks_statbel":  handle_peer_benchmarks_statbel,
+    "competition_density":      handle_competition_density,
     "score_locations":          handle_score_locations,
     "rent_benchmark":           handle_rent_benchmark,
     "permit_checklist_for":     handle_permit_checklist_for,
