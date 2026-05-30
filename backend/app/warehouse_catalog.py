@@ -5,9 +5,16 @@ that makes `query_warehouse` injection-safe: only tables/columns named here can 
 reach the SQL string (values are always parameterized; identifiers come from this
 dict, never from the raw model input).
 
+Every table/column here is verified against supabase/schema.sql — the catalogue is
+the allowlist, so a name that doesn't exist in the DB would be both a runtime error
+AND an unvalidated identifier. Keep it in lockstep with the schema (see the
+catalog-vs-schema test in backend/tests/test_droomzaak.py).
+
 Deliberately excluded: kbo_geocode (no-redistribution bridge), agent_sessions
-(not data), and the per-firm identity columns of business_registry (ent, kbo_id,
-lon, lat) — the generic surface only ever returns aggregates, never identities.
+(not data), geometry columns (geom_wkb — render tier), date/timestamp columns, and
+per-firm identity columns (ent, kbo_id, enterprise_number, establishment_number,
+name/naam, ondernemingsnummer, street, house_nbr, lon, lat, capakey, aanvrager) —
+the generic surface only ever returns aggregates, never identities.
 
 A column is `numeric` if it can be an agg_field (sum/avg/min/max/median); `groupable`
 if it can be a group_by. `aggregates_only` tables (Belfirst / KBO academic) suppress
@@ -27,31 +34,37 @@ def _col(meaning: str, *, numeric: bool = False, groupable: bool = False) -> dic
 CATALOG: dict[str, dict] = {
     "business_registry": {
         "grain": "one row per KBO establishment (a chain has many)",
-        "one_line": "Geocoded KBO firms in Gent — count active businesses by sector/NACE/wijk.",
+        "one_line": "Geocoded KBO firms in Gent — count active businesses by NACE/sector/form.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Vestigingsniveau (een keten telt meermaals); tellingen zijn vestigingen, geen unieke ondernemingen.",
+        "caveat_nl": "Vestigingsniveau (een keten telt meermaals); tellingen zijn vestigingen, geen unieke ondernemingen. NACE-label staat in nace_ref, wijk-naam in geo_wijken.",
         "columns": {
             "nace5": _col("5-digit NACE-BEL 2008 code", groupable=True),
-            "nace_label_nl": _col("Dutch NACE label", groupable=True),
             "nis9_code": _col("statistical sector (spine key)", groupable=True),
-            "sector_naam": _col("sector name", groupable=True),
-            "wijk": _col("district (wijk) name", groupable=True),
+            "juridical_form": _col("legal form", groupable=True),
+            "entity_type": _col("entity vs establishment row", groupable=True),
+            "city": _col("city/municipality", groupable=True),
         },
     },
     "business_financials": {
         "grain": "one row per enterprise (Belfirst)",
-        "one_line": "Belfirst enterprise financials — peer revenue/profit/size, AGGREGATES ONLY.",
+        "one_line": "Belfirst enterprise financials — peer turnover/result/size, AGGREGATES ONLY.",
         "licence": "aggregates_only",
         "aggregates_only": True,
-        "caveat_nl": "Belfirst (proprietair): alleen geaggregeerd, nooit per onderneming; kleine cohorten worden onderdrukt.",
+        "caveat_nl": "Belfirst (proprietair): alleen geaggregeerd, nooit per onderneming; cohorten < 5 worden onderdrukt. Bedragen in €.",
         "columns": {
             "nace5": _col("5-digit NACE code", groupable=True),
-            "revenue_eur": _col("annual revenue €", numeric=True),
-            "profit_eur": _col("annual profit €", numeric=True),
-            "employees": _col("employee count", numeric=True),
-            "equity_eur": _col("equity €", numeric=True),
-            "founding_year": _col("year founded", numeric=True, groupable=True),
+            "gemeente": _col("municipality", groupable=True),
+            "laatste_jaar": _col("year of latest accounts", numeric=True, groupable=True),
+            "omzet_eur": _col("turnover €", numeric=True),
+            "ebitda_eur": _col("EBITDA €", numeric=True),
+            "ebit_eur": _col("EBIT €", numeric=True),
+            "eigen_vermogen_eur": _col("equity €", numeric=True),
+            "totaal_activa_eur": _col("total assets €", numeric=True),
+            "werknemers": _col("employee count", numeric=True),
+            "solvency_pct": _col("solvency %", numeric=True),
+            "profit_margin_pct": _col("profit margin %", numeric=True),
+            "roe_pct": _col("return on equity %", numeric=True),
         },
     },
     "business_registry_history": {
@@ -59,25 +72,27 @@ CATALOG: dict[str, dict] = {
         "one_line": "Establishment lifespans — survival/churn signal, AGGREGATES ONLY.",
         "licence": "aggregates_only",
         "aggregates_only": True,
-        "caveat_nl": "KBO academisch: alleen geaggregeerd; kleine cohorten onderdrukt.",
+        "caveat_nl": "KBO academisch: alleen geaggregeerd; cohorten < 5 onderdrukt. Tel met count; open/close-datums zijn niet als veld ontsloten.",
         "columns": {
             "nace5": _col("5-digit NACE code", groupable=True),
             "is_active": _col("establishment currently active", groupable=True),
+            "end_reason": _col("reason the establishment closed", groupable=True),
         },
     },
     "demographics_sector": {
         "grain": "one row per statistical sector (Statbel)",
-        "one_line": "Population & income per sector.",
+        "one_line": "Population, motorization & income per sector.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Absolute kolommen (households, n_declarations) zijn NIS8-ouderniveau — niet hersommeren; ratio's (median_income, cars_per_hh) zijn per sector correct.",
+        "caveat_nl": "Absolute kolommen (households, cars, n_declarations) zijn NIS8-ouderniveau — niet hersommeren; ratio's (median_income, cars_per_hh) zijn per sector correct.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
             "population": _col("inhabitants", numeric=True),
+            "households": _col("households (NIS8-parent total)", numeric=True),
+            "cars": _col("cars (NIS8-parent total)", numeric=True),
+            "cars_per_hh": _col("cars per household", numeric=True),
             "median_income": _col("median income € (per-sector, sound)", numeric=True),
             "avg_income": _col("average income €", numeric=True),
-            "households": _col("households (NIS8-parent total)", numeric=True),
-            "cars_per_hh": _col("cars per household", numeric=True),
             "n_declarations": _col("tax declarations (NIS8-parent total)", numeric=True),
         },
     },
@@ -105,46 +120,50 @@ CATALOG: dict[str, dict] = {
         "caveat_nl": "De Lijn GTFS; bus/tram-aanbod, geen NMBS-treinen.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
+            "wijknr": _col("district number", groupable=True),
             "n_stops": _col("stop count", numeric=True),
             "departures_total": _col("daily departures", numeric=True),
-            "departures_per_stop": _col("departures per stop", numeric=True),
         },
     },
     "disruption_events": {
-        "grain": "one row per sector × event_type (Gent ODS)",
-        "one_line": "Road works / event disruptions per sector.",
+        "grain": "one row per public-domain disruption (GIPOD-style)",
+        "one_line": "Road works / events / detours — count disruptions per sector.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Stad Gent open data; momentopname van geplande verstoringen.",
+        "caveat_nl": "Stad Gent open data; tel met count(*) per sector/kind. Momentopname van geplande verstoringen.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
-            "event_type": _col("disruption type", groupable=True),
-            "event_count": _col("number of events", numeric=True),
+            "kind": _col("disruption kind", groupable=True),
+            "owner": _col("owning authority", groupable=True),
+            "wijknr": _col("district number", groupable=True),
+            "duration_days": _col("duration in days", numeric=True),
         },
     },
     "permits_events": {
-        "grain": "one row per sector × permit_type × year (Omgevingsloket)",
-        "one_line": "Environmental/building permit activity per sector.",
+        "grain": "one row per Omgevingsloket permit application",
+        "one_line": "Environmental/building permit applications — count permit activity per sector.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Omgevingsloket; vergunningsACTIVITEIT, geen garantie over één pand.",
+        "caveat_nl": "Omgevingsloket; tel met count(*). VergunningsACTIVITEIT, geen uitspraak over één pand.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
-            "permit_type": _col("permit type", groupable=True),
-            "year": _col("permit year", numeric=True, groupable=True),
-            "permit_count": _col("number of permits", numeric=True),
+            "kind": _col("application kind", groupable=True),
+            "project_type_code": _col("project type code", groupable=True),
+            "huidige_toestand": _col("current status", groupable=True),
+            "wijknr": _col("district number", groupable=True),
         },
     },
     "gent_points": {
-        "grain": "one row per sector × category (Gent ODS)",
-        "one_line": "Points of interest per sector by category.",
+        "grain": "one row per point of interest (Gent ODS)",
+        "one_line": "Points of interest — count POIs per sector by category.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Stad Gent open data; dekt 28% van de sectoren — kruis met OSM/Places.",
+        "caveat_nl": "Stad Gent open data; tel met count(*). Dekt ~28% van de sectoren — kruis met OSM/Places.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
             "category": _col("POI category", groupable=True),
-            "point_count": _col("number of points", numeric=True),
+            "subtype": _col("POI subtype", groupable=True),
+            "wijknr": _col("district number", groupable=True),
         },
     },
     "peer_vat_nace_empl_gentarr": {
@@ -155,33 +174,39 @@ CATALOG: dict[str, dict] = {
         "caveat_nl": "Arrondissement Gent (44000), niet de stad; nace5-niveau.",
         "columns": {
             "nace5": _col("5-digit NACE code", groupable=True),
-            "employee_size_class": _col("employee size band", groupable=True),
+            "nace_label": _col("NACE label", groupable=True),
+            "size_class": _col("employee size class", groupable=True),
+            "size_label": _col("employee size label", groupable=True),
             "n_vat": _col("active VAT registrations", numeric=True),
             "n_vat_start": _col("VAT starts", numeric=True),
             "n_vat_stop": _col("VAT stops", numeric=True),
         },
     },
     "peer_bankruptcies": {
-        "grain": "one row per NACE4 × year (Statbel, municipality 44021)",
+        "grain": "one row per NACE4 × year × month (Statbel, municipality 44021)",
         "one_line": "Bankruptcies by NACE4 over time — Gent municipality.",
         "licence": "open",
         "aggregates_only": False,
         "caveat_nl": "Gemeente Gent (44021); nace4-niveau.",
         "columns": {
             "nace4": _col("4-digit NACE code", groupable=True),
+            "nace_label": _col("NACE label", groupable=True),
             "year": _col("year", numeric=True, groupable=True),
+            "month": _col("month", numeric=True, groupable=True),
             "n_bankruptcies": _col("bankruptcies", numeric=True),
         },
     },
     "peer_starters_flanders": {
-        "grain": "one row per NACE2 × year (Statbel, Flanders 02000)",
+        "grain": "one row per NACE2 × year × month (Statbel, Flanders 02000)",
         "one_line": "Business starters/stops by NACE2 over time — Flanders region.",
         "licence": "open",
         "aggregates_only": False,
         "caveat_nl": "Vlaams Gewest (02000), niet Gent; nace2-divisieniveau.",
         "columns": {
             "nace2": _col("2-digit NACE division", groupable=True),
+            "nace_label": _col("NACE label", groupable=True),
             "year": _col("year", numeric=True, groupable=True),
+            "month": _col("month", numeric=True, groupable=True),
             "n_first_start": _col("first-time starts", numeric=True),
             "n_restart": _col("restarts", numeric=True),
             "n_stop": _col("stops", numeric=True),
@@ -203,15 +228,16 @@ CATALOG: dict[str, dict] = {
     },
     "geo_sectors": {
         "grain": "one row per statistical sector (254)",
-        "one_line": "Sector → name → district (wijk) spine for labels.",
+        "one_line": "Sector → name → district spine for labels.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Ruimtelijke ruggengraat (Gent ODS).",
+        "caveat_nl": "Ruimtelijke ruggengraat (Gent ODS); geometrie leeft in de render-tier.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
-            "sectornaam": _col("sector name", groupable=True),
+            "sectorcode": _col("sector code suffix", groupable=True),
             "wijknr": _col("district number", groupable=True),
-            "wijk": _col("district name", groupable=True),
+            "sectornaam": _col("sector name", groupable=True),
+            "stadcode": _col("city code", groupable=True),
         },
     },
 }

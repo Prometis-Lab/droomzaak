@@ -18,15 +18,17 @@ CHAPTER_TOOL_ALLOWLIST: dict[str, set[str]] = {
     "1_droom": {"extract_dream_profile", "report_problem", "apply_map_actions"},
     "2_niche": {
         "peer_benchmarks_statbel", "query_osm", "places_search", "web_search",
+        "describe_warehouse", "query_warehouse",
         "report_problem", "apply_map_actions",
     },
     "3_waar": {
         "score_locations", "rent_benchmark", "geocode", "query_osm", "isochrone",
-        "clip_points_to_area",
+        "clip_points_to_area", "describe_warehouse", "query_warehouse",
         "report_problem", "apply_map_actions",
     },
     "4_vergunningen": {
         "permit_checklist_for", "subsidies_for", "legal_form_advisor", "web_search",
+        "describe_warehouse", "query_warehouse",
         "report_problem", "apply_map_actions",
     },
     "5_pakket": {
@@ -67,8 +69,11 @@ Rules (apply on every turn):
    write the apply_map_actions payload as plaintext; invoke the tool.
 3. Decide silently — never end a turn without apply_map_actions by asking a question.
    EXCEPTION (Chapter 1 only): if extract_dream_profile returns confidence < 0.5 OR
-   misses critical fields (sector, neighbourhood_anchor), you MAY ask 1-2 warm
-   follow-up questions before committing.
+   misses the sector, you MAY ask 1-2 warm follow-up questions about the dream itself
+   (what kind of business, for whom) before committing. NEVER ask where the business
+   should go — location is not a Chapter 1 concern. It surfaces naturally in chapters
+   2-3 (Niche & Waar), where you reason about it with tools. A missing
+   neighbourhood_anchor is fine — carry on without it; do not prompt for it.
 4. Search every signal you planned. Use the chapter's required tools. ONE attempt per
    tool per turn — if a tool returns empty/error, do NOT re-call it and do NOT pile on
    other tools to compensate; name the gap in the reply and call report_problem. You
@@ -103,9 +108,9 @@ Tool surface (chapter-gated — you only RECEIVE the tools for your current chap
 report_problem + apply_map_actions are always present). Parameters live in each tool's
 schema — read them there, don't guess:
 - Ch1 Droom:        extract_dream_profile
-- Ch2 Niche:        peer_benchmarks_statbel · query_osm · places_search · web_search
-- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone · clip_points_to_area (clip OSM/Places punten tot een isochrone-polygoon)
-- Ch4 Vergunningen: permit_checklist_for · subsidies_for · legal_form_advisor · web_search
+- Ch2 Niche:        peer_benchmarks_statbel · query_osm · places_search · web_search · describe_warehouse · query_warehouse
+- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone · clip_points_to_area (clip OSM/Places punten tot een isochrone-polygoon) · describe_warehouse · query_warehouse
+- Ch4 Vergunningen: permit_checklist_for · subsidies_for · legal_form_advisor · web_search · describe_warehouse · query_warehouse
 - Ch5 Pakket:       generate_dream_narrative · compose_package
 
 Routing heuristics (the non-obvious calls):
@@ -117,6 +122,10 @@ Routing heuristics (the non-obvious calls):
   sector level.
 - web_search is the official-domain fallback for long-tail rule questions only — not a
   substitute for a chapter's required analytical tool.
+- Off the five core questions (peer financials, survival/churn, permit or POI density, …)?
+  Use describe_warehouse → query_warehouse rather than guessing. The dedicated tools
+  (score_locations, peer_benchmarks_statbel, rent_benchmark) stay the source for the core
+  answers; always echo the caveat query_warehouse returns, and never read a single firm.
 
 Action shapes (inside apply_map_actions.actions[]):
 - show_layer:        {{"type":"show_layer","dataset_id":"..."}}
@@ -181,8 +190,11 @@ def _chapter1(_state: dict) -> str:
         "## Hoofdstuk 1 — Droom\n"
         "De gebruiker heeft net één of twee zinnen over hun droom getypt. Jouw enige "
         "taak deze beurt: extract_dream_profile aanroepen met text=<user_message>.\n"
-        "Als confidence < 0.5 OF kritieke velden ontbreken (sector, neighbourhood_anchor), "
-        "mag je 1-2 warme vervolgvragen stellen (uitzondering op Regel 3).\n"
+        "Als confidence < 0.5 OF de sector ontbreekt, mag je 1-2 warme vervolgvragen "
+        "over de droom zelf stellen (wat voor zaak, voor wie) — uitzondering op Regel 3. "
+        "Vraag NOOIT naar de locatie of buurt: dat hoort niet in dit hoofdstuk, maar "
+        "komt vanzelf aan bod in Hoofdstuk 2-3 (Niche & Waar). Een ontbrekende "
+        "neighbourhood_anchor is prima — ga gewoon verder zonder ernaar te vragen.\n"
         "Als het profiel rond is (≥3 van: sector, schaal, neighbourhood_anchor, vibe), "
         "call apply_map_actions met één warme zin die de droom samenvat + "
         "set_chapter_state(patch={dream_profile:<result>, current_chapter:'2_niche'}). "
@@ -203,7 +215,10 @@ def _chapter2(state: dict) -> str:
         "2. query_osm met de juiste tags voor de niche\n"
         "3. places_search met query + bbox=Gent\n"
         "Triangulering: vergelijk KBO-tellingen met OSM en Places; vermeld grote "
-        "verschillen. Reply: één korte alinea + 2-4 kerncijfers. Toon de niche-punten "
+        "verschillen. Dieper graven (peer-omzet, overleving, faillissementen per jaar)? "
+        "describe_warehouse → query_warehouse op business_financials / "
+        "business_registry_history / peer_bankruptcies (Belfirst: alleen geaggregeerd). "
+        "Reply: één korte alinea + 2-4 kerncijfers. Toon de niche-punten "
         "als laag (osm-/places-). Hoofdstuk-uitgang: de UI-knop 'Vind je plek'; OF de "
         "gebruiker zegt expliciet 'laten we zoeken' → set_chapter_state current_chapter='3_waar'.\n"
         "Bij die overgang: zet niche_signals in DEZELFDE set_chapter_state-patch (vereist voor "
@@ -226,6 +241,9 @@ def _chapter3(state: dict) -> str:
         "1. score_locations(dream_profile=<from state>, top_n=5)\n"
         "2. rent_benchmark(sector_id=<top1.sector_id>) — sector-proxy, NOOIT per adres.\n"
         "geocode als de gebruiker een specifiek adres noemt.\n"
+        "Ad-hoc 'X per sector' (vergunningen, POI's, verstoringen)? describe_warehouse → "
+        "query_warehouse op permits_events / gent_points / disruption_events — "
+        "score_locations blijft je scorer voor de ranking.\n"
         "Reply: één alinea, top-3 met 'waarom hier' per stuk. Map: toon de "
         "score-locations-laag MET set_layer_heatmap(field='score', palette='blue-yellow-red') "
         "— niet onderhandelbaar — plus de top-3 als place_marker. Hoofdstuk-uitgang: de "
@@ -244,6 +262,8 @@ def _chapter4(state: dict) -> str:
         "2. subsidies_for(dream_profile=<state>, chosen_location=<state>)\n"
         "3. legal_form_advisor(dream_profile=<state>, chosen_location=<state>)\n"
         "Reply: één alinea die de drie cards samenvat met één belangrijk detail per card. "
+        "Vergunningsdrukte per buurt als context? query_warehouse op permits_events — "
+        "de regels zelf komen altijd uit permit_checklist_for/subsidies_for. "
         "Honesty: als permit_checklist_for uncertain_areas_nl teruggeeft, NAME die. "
         "Map: place_marker op de gekozen locatie. Hoofdstuk-uitgang: 'klaar voor mijn "
         "pakket' → current_chapter='5_pakket'."

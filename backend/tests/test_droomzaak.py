@@ -366,3 +366,152 @@ async def test_on_commit_exception_safe():
         execute_tool=_commit_executor, on_commit=boom, debug_stages=stages, max_iterations=5)
     assert result["reply"] == "brug"
     assert any(s["stage"] == "on_commit_error" for s in stages)
+
+
+# ── describe_warehouse + query_warehouse (generic exploration) ────────────────
+
+
+def _capture_gateway(monkeypatch, rows):
+    """Install a capturing fake gateway.query; return a dict that records the call."""
+    captured: dict = {"calls": 0, "sql": None, "params": None, "tool_name": None}
+
+    async def fake_query(sql, params=None, *, tool_name=None):
+        captured["calls"] += 1
+        captured["sql"], captured["params"], captured["tool_name"] = sql, params, tool_name
+        return rows
+
+    monkeypatch.setattr(droomzaak_tools.gateway, "query", fake_query)
+    return captured
+
+
+async def test_describe_warehouse_list():
+    out = await droomzaak_tools.handle_describe_warehouse({}, _run())
+    names = {t["table"] for t in out["tables"]}
+    assert {"business_financials", "permits_events", "gent_points"} <= names
+    bf = next(t for t in out["tables"] if t["table"] == "business_financials")
+    assert bf["licence"] == "aggregates_only"
+
+
+async def test_describe_warehouse_one_table():
+    out = await droomzaak_tools.handle_describe_warehouse(
+        {"table": "housing_price_sector"}, _run())
+    assert out["table"] == "housing_price_sector"
+    assert "median_price" in out["numeric_fields"]
+    assert "property_type" in out["groupable_fields"]
+    assert "VERKOOPPRIJS" in out["caveat_nl"]
+
+
+async def test_describe_warehouse_unknown_table():
+    out = await droomzaak_tools.handle_describe_warehouse({"table": "secret_table"}, _run())
+    assert "error" in out
+
+
+def test_query_warehouse_catalog_matches_schema():
+    """The catalog is the injection allowlist — every table/column must exist in schema.sql."""
+    import pathlib
+    import re
+
+    from backend.app import warehouse_catalog
+
+    schema = (pathlib.Path(__file__).parent.parent.parent
+              / "supabase" / "schema.sql").read_text()
+    blocks = re.split(r"CREATE TABLE IF NOT EXISTS droomzaak\.", schema)
+    schema_cols: dict[str, set[str]] = {}
+    for block in blocks[1:]:
+        name = block.split("(", 1)[0].strip()
+        body = block.split("(", 1)[1].split(");", 1)[0]
+        cols = set()
+        for line in body.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("--"):
+                continue
+            tok = stripped.split()[0]
+            if tok.isidentifier():
+                cols.add(tok)
+        schema_cols[name] = cols
+    for table, meta in warehouse_catalog.CATALOG.items():
+        assert table in schema_cols, f"catalog table {table} not in schema.sql"
+        for col in meta["columns"]:
+            assert col in schema_cols[table], f"{table}.{col} not in schema.sql"
+
+
+async def test_query_warehouse_count_group_is_parameterized(monkeypatch):
+    cap = _capture_gateway(monkeypatch, [{"group_value": "44021A00-", "value": 12, "n": 12}])
+    out = await droomzaak_tools.handle_query_warehouse(
+        {"table": "business_registry", "group_by": "nis9_code",
+         "filters": [{"column": "nace5", "op": "=", "value": "56101"}]}, _run())
+    assert out["row_count"] == 1 and out["rows"][0]["value"] == 12
+    # the filter value is bound, never inlined into the SQL string
+    assert "56101" not in cap["sql"] and "56101" in cap["params"]
+    assert "FROM droomzaak.business_registry" in cap["sql"]
+    assert "GROUP BY nis9_code" in cap["sql"]
+    assert cap["tool_name"] == "query_warehouse"
+
+
+async def test_query_warehouse_median_sql(monkeypatch):
+    cap = _capture_gateway(monkeypatch, [{"group_value": "56101", "value": 250000.0, "n": 30}])
+    out = await droomzaak_tools.handle_query_warehouse(
+        {"table": "business_financials", "agg": "median",
+         "agg_field": "omzet_eur", "group_by": "nace5"}, _run())
+    assert "percentile_cont(0.5) WITHIN GROUP (ORDER BY omzet_eur)" in cap["sql"]
+    assert out["rows"][0]["value"] == 250000.0
+
+
+async def test_query_warehouse_coerces_decimal_to_json_safe(monkeypatch):
+    """asyncpg returns Decimal for avg/percentile_cont — the result must stay
+    JSON-serialisable or the tool-result round-trip to the model crashes the turn."""
+    import decimal
+    import json
+
+    _capture_gateway(monkeypatch, [{"group_value": "10711",
+                                    "value": decimal.Decimal("939488501.0"), "n": 10}])
+    out = await droomzaak_tools.handle_query_warehouse(
+        {"table": "business_financials", "agg": "avg",
+         "agg_field": "omzet_eur", "group_by": "nace5"}, _run())
+    assert isinstance(out["rows"][0]["value"], float)
+    json.dumps(out)  # must not raise
+
+
+async def test_query_warehouse_minmax_blocked_on_aggregates_only(monkeypatch):
+    """min/max on an aggregates-only table would expose one firm's exact value —
+    reject before any query runs (Belfirst 'nooit per onderneming')."""
+    cap = _capture_gateway(monkeypatch, [{"group_value": "56101", "value": 1.0, "n": 9}])
+    for agg in ("min", "max"):
+        out = await droomzaak_tools.handle_query_warehouse(
+            {"table": "business_financials", "agg": agg, "agg_field": "omzet_eur"}, _run())
+        assert "error" in out
+    assert cap["calls"] == 0  # neither min nor max reached the gateway
+    # avg on the same table is allowed and does reach the gateway.
+    out = await droomzaak_tools.handle_query_warehouse(
+        {"table": "business_financials", "agg": "avg", "agg_field": "omzet_eur"}, _run())
+    assert "error" not in out
+    assert cap["calls"] == 1
+
+
+async def test_query_warehouse_injection_guards_never_query(monkeypatch):
+    cap = _capture_gateway(monkeypatch, [])
+    bad_calls = [
+        {"table": "pg_users; DROP TABLE x"},                                  # bad table
+        {"table": "business_registry", "group_by": "lon); DROP TABLE x--"},   # bad group_by
+        {"table": "business_registry",
+         "filters": [{"column": "ent', 'x", "op": "=", "value": "1"}]},       # bad filter col
+        {"table": "business_registry", "agg": "avg", "agg_field": "nace5"},   # non-numeric agg
+    ]
+    for args in bad_calls:
+        out = await droomzaak_tools.handle_query_warehouse(args, _run())
+        assert "error" in out
+    assert cap["calls"] == 0  # no invalid request reached the gateway
+
+
+async def test_query_warehouse_aggregates_only_suppresses_small_cohort(monkeypatch):
+    _capture_gateway(monkeypatch, [
+        {"group_value": "56101", "value": 300000.0, "n": 9},   # cohort ok
+        {"group_value": "56102", "value": 999999.0, "n": 2},   # too few firms → drop
+    ])
+    out = await droomzaak_tools.handle_query_warehouse(
+        {"table": "business_financials", "agg": "avg",
+         "agg_field": "omzet_eur", "group_by": "nace5"}, _run())
+    assert out["row_count"] == 1
+    assert out["rows"][0]["group_value"] == "56101"
+    assert out["suppressed_low_cohort"] == 1
+    assert out["licence"] == "aggregates_only"
