@@ -26,6 +26,8 @@ On the changed diff, confirm:
 - **AuthZ / data exposure** — Belfirst per-company rows never on the founder path (aggregates only); no facial-image/PII scraping.
 - **Supply chain** — deps pinned (`uv.lock`, `package-lock.json`); `Safe Chain` recommended at setup.
 
+**Suppressing a verified false-positive (so the gate clears):** put `# nosemgrep` on the finding's *anchor line* — the statement start (e.g. the `con.execute(` line), **not** the closing paren of a multi-line call, or it won't match. Prefer a **bare** `# nosemgrep`: the offline local ruleset (`.cache/semgrep-rules`) path-prefixes rule IDs (`cache.semgrep-rules.python.…`), so a named `# nosemgrep: <rule>` silently fails to suppress (it would only match under the network registry fallback). Suppress only a genuine false-positive — e.g. an internal-only identifier f-stringed into SQL while the runtime value is bound via `?` — and keep the SAST-note comment explaining why.
+
 ## 3. Report
 ```
 Scan: gate exit 0 / 2 / WARN(no scanner)

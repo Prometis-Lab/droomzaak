@@ -1,0 +1,23 @@
+[project]
+name = "droomzaak"
+version = "0.1.0"
+description = "Droomzaak — data pipeline (Belgian open-data cleaning → Supabase warehouse)."
+requires-python = ">=3.13"
+dependencies = [
+    # data pipeline: clean (DuckDB) + load (DuckDB postgres extension)
+    "duckdb==1.4.3",
+    "pyproj==3.7.2",
+    "shapely==2.1.2",
+    "pandas[parquet]>=3.0.3",
+    "loguru>=0.7.3",
+    "python-dotenv==1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+    "ruff>=0.9",
+]
+
+[tool.uv]
+package = false
