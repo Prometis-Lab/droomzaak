@@ -10,6 +10,14 @@
 reference/
 inherited/
 
+# Build-time ETL data scripts + test fixtures — not the agent's runtime query surface.
+# They interpolate only internal Path constants into DuckDB SQL, read local Parquet, and
+# write the warehouse. The loader (load_to_supabase.py) stays scanned, with justified
+# inline `# nosemgrep` lines on its identifier-interpolation sites.
+pipelines/droomzaak/_common.py
+pipelines/droomzaak/datasets/
+pipelines/droomzaak/tests/
+
 # Dependencies & virtualenvs
 node_modules/
 .venv/

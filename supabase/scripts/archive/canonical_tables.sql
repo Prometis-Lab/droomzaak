@@ -1,15 +1,12 @@
--- ============================================================================
--- Droomzaak warehouse — full schema snapshot of the `droomzaak` schema (local mirror)
--- ============================================================================
--- GENERATED — do not hand-edit. The QUERYABLE, RE-DEPLOYABLE copy of the live schema
--- on Supabase (project knwnjhbdmmdkqnmakqkr). Change history lives in supabase/migrations/.
+-- Idempotent DDL for the droomzaak analytical warehouse — all 16 canonical tables.
+-- Generated from the built canonical Parquet schemas (data/canonical/*.parquet); each
+-- table's column ORDER matches its datasets/<name>/clean.py SELECT, so the loader's
+-- position-based `INSERT … SELECT *` (pipelines/droomzaak/load_to_supabase.py) lines up.
 --
--- Regenerate after every applied migration so it matches the live DB. Preferred (when the
--- tools are installed — neither was on the build machine, so this snapshot was derived
--- from migrations/20260530143210_droomzaak_canonical_tables.sql, which the live DB matches):
---     supabase db dump --schema droomzaak -f supabase/schema.sql
---   # or:
---     pg_dump --schema-only --no-owner --no-privileges --schema=droomzaak "$SUPABASE_DB_URL" > supabase/schema.sql
+-- STOP-and-wait (supabase/README.md, CLAUDE.md rule 11): the operator applies this; the
+-- Supabase MCP is read-only and never runs DDL. Then fold into a timestamped
+-- supabase/migrations/ file, regenerate supabase/schema.sql, update QUICK_REFERENCE.md.
+--   psql "$SUPABASE_DB_URL" -f supabase/scripts/canonical_tables.sql
 --
 -- Geometry note: geo_sectors/geo_wijken store WKB as bytea (no PostGIS dependency); the
 -- usable polygons live in the render tier (DuckDB/GeoJSON), per .claude/rules/data-tiers.md.

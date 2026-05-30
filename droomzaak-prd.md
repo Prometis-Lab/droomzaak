@@ -412,3 +412,33 @@ This PRD draws on:
 - **DataGateway** — the single internal module the product uses to reach the REASON tier: parameterized SQL (asyncpg/psycopg) over the `droomzaak` Postgres schema. One audited seam; the debug overlay shows every analytical call routed through it.
 - **Soda Straw** — MCP-based access-management product for AI agents. Used here only as a dev-time Claude Code MCP (in `.mcp.json`), not a product runtime dependency.
 - **Map Pilot** — the open-data Ghent map + agent product Droomzaak extends. Foundation provides: agent loop, validation, MapLibre canvas, DuckDB catalogue.
+
+---
+
+## Appendix C — Optional vibe-extras (post-freeze garnish)
+
+Three small, droppable additions that raise the **Creativity / Vibes / Impact** scores at near-zero cost. **Strictly optional and strictly post-core:** none of these is built before the five chapters work end-to-end, none touches the agent loop, the chapter state machine, or the Soda Straw boundary in a load-bearing way, and any of them can be cut without leaving a hole. They are garnish, not scope (respect the hour-6 feature freeze, §5.2). Listed in win-per-effort order.
+
+### C.1 "Score the building we're standing in" — Wintercircus as a live address
+
+The demo already must prove the engine is generic by re-running Chapter 3+ on a non-Vrijdagmarkt address (§6.3 #6). Make the canned alternate address **Wintercircus itself** — *"let's imagine your dream opened here, in this room"* — and let the agent surface what it would actually recommend for the venue (sector fit, footfall, nearby competition). Venue-specific, disarming, and it doubles as the proof-the-engine-isn't-hard-coded beat that's already on the success checklist.
+
+- **Cost:** ≈ 0 — it is an address string fed through the existing Chapter 3 path. No new tool.
+- **Lifts:** Creativity, Vibes, Impact.
+- **Risk:** none — uses only paths the demo already exercises. Rehearse the one address so the live re-run is clean.
+
+### C.2 KBO-based business-name checker
+
+A small `check_name_availability(name)` tool: the founder (or the agent) proposes 2–3 candidate names and we check each against the **KBO business registry** for existing-name collisions — *"'Groene Maan' is taken; 'De Zachte Keuken' looks free."* A real founder pain, a genuine stop-and-think moment, and defensible **because it rides our actual registry data through Soda Straw** rather than inventing names from nothing.
+
+- **Cost:** small — one analytical tool, one parameterized name-match query against the KBO table (already on disk, `business_registry.sql`). Thin Soda Straw wrapper, same shape as the other data tools (`rules/data-tiers.md`).
+- **Lifts:** Creativity, Vibes, Impact.
+- **Guardrails:** Soda Straw boundary applies (analytical read → straw → Postgres, parameterized SQL only). **Label it a proxy:** it is an *availability signal* against registered company names, **not** legal name clearance (which also involves trademark and court-registry checks) — point the founder to the ondernemingsloket for the binding check, never imply certainty (§1.4).
+
+### C.3 "Your bank pitch" — a four-line elevator pitch
+
+Not a hackathon pitch — *the founder's own* four-sentence elevator pitch for their bank loan or a friends-and-family round, drawn from the dream profile plus the package numbers. A real need (you need a pitch to get financed) that slots naturally into the Chapter-5 package.
+
+- **Cost:** small — reuses `generate_dream_narrative`'s LLM call and style guide with a short, capped prompt template; rendered as one extra block in the package.
+- **Lifts:** Vibes, Impact.
+- **Guardrails:** same tone discipline as the dream narrative — warm, concrete, grounded in the founder's own words, length-capped, pre-screened (§6.1 cringe risk). Drop it if the narrative tone work isn't already landing.
