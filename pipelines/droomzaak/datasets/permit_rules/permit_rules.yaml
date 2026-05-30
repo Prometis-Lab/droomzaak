@@ -1,0 +1,69 @@
+# permit_rules.yaml — Droomzaak Chapter-4 permit decision table (curated, frozen).
+#
+# Source-of-truth artifact: hand-authored + human-verified from official sources, never
+# scraped at runtime. Each rule carries a `source_url` for provenance. See
+# docs/specs/2026-05-30-permit-rules-curated-config-design.md.
+#
+# `attributes` is the inline vocabulary `applies_when` keys off. The future canonical
+# sector_attributes.yaml MUST adopt these keys verbatim.
+
+attributes:
+  horeca:                       # NACE 56.*
+    serves_alcohol: [none, gegiste, sterke]
+    seating: [none, indoor, terrace]
+    takeaway_only: bool
+    hot_kitchen_frying: bool
+    capacity_seats: int
+    renovation: bool
+    music: bool
+  retail:                       # NACE 47.*
+    food_retail: bool
+    signage: bool
+  consultant:                   # NACE 70/74.*
+    home_based: bool
+    employees: int
+
+rules:
+  - permit: "KBO-inschrijving + BTW-activering"
+    nace_prefix: ["56", "47", "70", "74"]
+    applies_when: {}                       # every business
+    official_url: "https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming/de-administratieve-stappen-om/inschrijving-bij-de-kruispuntbank"
+    source_url: "https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming/de-administratieve-stappen-om/inschrijving-bij-de-kruispuntbank"
+    explainer: "Inschrijving in de Kruispuntbank van Ondernemingen via een erkend ondernemingsloket, daarna BTW-activering bij MyMinfin."
+    cost: {type: fixed, eur: 105.50, period: one_time, note: "KBO-loket inschrijving 2026; BTW gratis via MyMinfin"}
+    lead_time_days: 1
+    depends_on: []
+    status: active
+
+  - permit: "Horeca-attest"
+    nace_prefix: ["56"]
+    applies_when: {}                       # any horeca
+    official_url: "https://stad.gent/nl/ondernemen/horeca/horeca-attest"
+    source_url: "https://stad.gent/nl/ondernemen/horeca/horeca-attest"
+    explainer: "Umbrella-attest voor een horecazaak in Gent; bundelt o.a. de brandveiligheidscontrole."
+    cost: {type: none_published}
+    lead_time_days: 45
+    depends_on: ["KBO-inschrijving + BTW-activering"]
+    status: active
+
+  - permit: "Drankvergunning gegiste dranken"
+    nace_prefix: ["56"]
+    applies_when: {serves_alcohol: [gegiste, sterke]}
+    official_url: "https://stad.gent/nl/ondernemen/horeca/drankvergunning"
+    source_url: "https://stad.gent/nl/ondernemen/horeca/drankvergunning"
+    explainer: "Vergunning voor het schenken van gegiste dranken (bier en wijn) in een vaste drankgelegenheid."
+    cost: {type: none_published}
+    lead_time_days: 30
+    depends_on: ["Horeca-attest"]
+    status: active
+
+  - permit: "Unisono (SABAM + billijke vergoeding)"
+    nace_prefix: ["56", "47"]
+    applies_when: {music: true}
+    official_url: "https://www.unisono.be"
+    source_url: "https://www.unisono.be"
+    explainer: "Vergoeding voor publiek afgespeelde muziek; bedrag via de officiële simulator (m²/type zaak)."
+    cost: {type: simulator, url: "https://www.unisono.be/nl/tarieven-en-simulatoren"}
+    lead_time_days: 0
+    depends_on: []
+    status: active
