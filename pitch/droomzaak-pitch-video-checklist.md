@@ -21,7 +21,7 @@
 | **Language** | Flemish (nl-BE) narrator VO · **no subtitles** · hero non-speaking |
 | **Hero** | Lore — late 20s, slim, black curly hair, brown skin, no glasses, bubbly |
 | **Worlds** | Bureaucratic admin office (before) → bistro → florist → bike workshop → back → keuzestress → Droomzaak |
-| **Format** | 16:9 master + 9:16 social |
+| **Format** | **5:7 portrait master, 864×1214** (native ratio of the Gemini dream frames). All 6 keyframes conformed to it in `pitch/keyframes/final/`. Vertical/social-friendly; a 16:9 or true-9:16 cut later via Runway Expand. |
 | **Video tool** | Runway Gen-4.5 (image-to-video, start/end-frame transforms) |
 | **Image tool** | Nano Banana Pro (Gemini) — identity-locked keyframes · backup GPT Image 2 |
 | **Voice tool** | ElevenLabs v3 — Flemish male, warm radio-ad narrator |

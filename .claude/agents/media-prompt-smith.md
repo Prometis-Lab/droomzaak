@@ -25,7 +25,8 @@ Given a brief — "prompt for S4", "add a florist→workshop transition", "a new
 - English for image/video prompts; **Flemish (nl-BE)** for VO text.
 - Lore's **master identity block verbatim** in every image prompt; **same pose/framing** across transform keyframes (only world + wardrobe + expression change).
 - Video transforms = **start frame = KF(A), end frame = KF(B)**; prompt the **motion** that carries the cut; generate ~10s, cut ~2–3s.
-- Brand palette: warm earth tones in dream worlds; **desaturated grey** office. Append the **negative list** to image prompts.
+- **Right level of detail** (skill §"Level of detail"): image prompts = **narrative prose + concrete specifics** (not keyword-soup or vibe-words like "cinematic/8K"); video prompts = **simple, positive, motion-only, one scene**.
+- Brand palette: warm earth tones in dream worlds; **desaturated grey** office. Append the **negative list** to **image** prompts only — **never** to a Runway/video prompt (Gen-4.5 has no negative prompting; phrase positively).
 - Only Lore is fourth-wall-aware — never prompt the world to react to her. **Never invent** beyond the grounding storyline.
 - New dream world? It must slot into the invariant beat structure (one more "Of dit?" module) and reuse the locked Lore — update the variable slots, not the spine.
 

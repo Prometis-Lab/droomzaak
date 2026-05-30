@@ -18,23 +18,23 @@
 
 ## Keyframes required (make these first, in Nano Banana)
 
-`KF0` grey desk · `KF1` bistro · `KF2` florist · `KF3` bike workshop · `KF4` desk (changed). See the reference doc §4.
+`KF0` grey desk (with side monitor) · `KF1` bistro · `KF2` florist · `KF3` bike workshop · `KF4` desk (changed, same monitor) · `KF5` over-the-shoulder at desk (screen visible). See the reference doc §4. **Use the conformed `pitch/keyframes/final/` set — all 864×1214.**
 
 ---
 
 ## Shotlist
 
 > `GEN` = generate length · `CUT` = target length in final edit · `VO` = narrator line over this shot
+>
+> **Runway prompt style** (per the `media-prompt-craft` skill): simple, **positive phrasing only**, **motion-focused** (the start/end keyframes carry the look — don't re-describe appearance), **one scene per clip**, **no negative list**. Generate ~10s, 2–3 variants, cut on the movement.
 
 ### S1 · The grey desk *(setup)*
 - **Frames:** start = KF0 · **GEN** ~10s → **CUT** ~6s · **VO:** *(none, then)* "Je job beu?"
 - **Camera/transition:** slow push-in; ends on her sigh + papers thudding onto desk.
 - **Runway prompt:**
 ```
-A young woman with black curly hair sits slumped at a grey bureaucratic office desk
-buried in stacks of paperwork, dull fluorescent light, desaturated cold colours, she
-sighs heavily and rests her head in her hand, a fresh stack of papers drops onto the
-desk. Static-to-slow-push-in, cinematic 35mm, melancholic, mundane.
+She sits slumped at the desk, lets out a heavy sigh, and lowers her head into her hand;
+a fresh stack of papers drops onto the desk in front of her. Slow push-in. She is alone.
 ```
 
 ### S2 · The voice *(fourth wall opens)*
@@ -42,9 +42,8 @@ desk. Static-to-slow-push-in, cinematic 35mm, melancholic, mundane.
 - **Camera:** static medium; she lifts her head, glances around for the voice, then looks **straight at camera**, then shakes her head.
 - **Runway prompt:**
 ```
-The same woman at the grey desk lifts her head, looks around confused searching for
-an unseen voice, then turns and looks directly into the camera, slightly puzzled, then
-shakes her head with faint disappointment. Subtle, natural performance, cinematic, eyeline to lens.
+She lifts her head and glances around as if searching for a voice, then turns and looks
+directly into the camera; she pauses, then slowly shakes her head. Static shot. She is alone.
 ```
 
 ### S3 · Transform → BISTRO *(Wat dan wel?)*
@@ -52,12 +51,10 @@ shakes her head with faint disappointment. Subtle, natural performance, cinemati
 - **Camera/transition:** she's **pulled forward**; the grey office rebuilds into a cozy bistro around her, her clothes resolve into the terracotta apron, coffee machine steams. She smiles, surprised.
 - **Runway prompt:**
 ```
-Seamless continuous transformation: the woman is pulled forward toward camera as the
-grey office instantly rebuilds around her into a warm cozy rustic bistro, her grey
-clothes morph into a colourful top and terracotta apron, a coffee machine puffs steam
-beside her, warm golden light floods in, she smiles in delighted surprise. Locked
-framing on the woman, world morphs around her, whip-motion, Old Spice style seamless
-set transformation, cinematic.
+She is pulled quickly forward toward the camera; the surroundings sweep past and settle
+into the bistro around her, a coffee machine puffing steam beside her, and she breaks into
+a surprised, delighted smile. One continuous forward push. She stays centered while the
+world around her changes.
 ```
 
 ### S4 · Transform → FLORIST *(Dit meer je stijl?)*
@@ -65,10 +62,9 @@ set transformation, cinematic.
 - **Camera/transition:** on a turn/whip-pan the bistro becomes a flower shop; apron changes; blooms fill the frame; she lights up.
 - **Runway prompt:**
 ```
-Seamless continuous transformation on a quick turn: the bistro rebuilds around the
-woman into a bright flower shop overflowing with colourful blooms, her apron becomes
-an earthy florist apron, warm daylight, she looks around blooming with joy. Locked
-framing on the woman, world morphs around her, Old Spice style seamless transition, cinematic.
+She turns her shoulders quickly; the surroundings sweep around her from the bistro into a
+bright flower shop full of blooms, and she turns back to the camera and lights up with joy.
+One continuous turning motion. She stays centered while the world around her changes.
 ```
 
 ### S5 · Transform → BIKE WORKSHOP *(Of dit?)*
@@ -76,11 +72,10 @@ framing on the woman, world morphs around her, Old Spice style seamless transiti
 - **Camera/transition:** a duck/whip and the flowers become an industrial bike-repair workshop; work apron; she ends with a confident **nod at camera**, happy.
 - **Runway prompt:**
 ```
-Seamless continuous transformation on a duck-and-rise: the flower shop rebuilds into
-an industrial urban bike-repair workshop with bikes and tools, warm bulb light and
-steel, her apron becomes an olive canvas work apron with a bandana, she looks amazed
-then nods confidently at the camera with a big natural smile. Locked framing on the
-woman, world morphs around her, Old Spice style seamless transition, hint of Ghent, cinematic.
+She ducks and rises again; as she comes back up the surroundings have swept into a
+bike-repair workshop with bikes and tools around her, she looks amazed, then nods
+confidently at the camera with a big smile. One continuous duck-and-rise motion. She stays
+centered while the world around her changes.
 ```
 
 ### S6 · Back to reality
@@ -88,21 +83,19 @@ woman, world morphs around her, Old Spice style seamless transition, hint of Ghe
 - **Camera/transition:** gentle dissolve back to the grey desk; same woman, but a new spark in her eye.
 - **Runway prompt:**
 ```
-Gentle dissolve from the workshop back to the grey bureaucratic office desk, the same
-woman now sitting there again in grey, but with a new spark of determination in her
-eyes, she looks at her computer. Cinematic, the colour slightly warmer than before.
+She settles back at the grey office desk and turns to look at her computer, a new spark
+of determination in her eyes. Gentle settle, minimal motion. She is alone. (The dissolve
+from the workshop is added in the edit; start frame KF3, end frame KF4.)
 ```
 
 ### S7 · The keuzestress *(tab explosion)*
-- **Frames:** start = KF4 (or a fresh over-shoulder still) · **GEN** ~10s → **CUT** ~5s · **VO:** *(none — let it play)*
+- **Frames:** start = **KF5** (over-the-shoulder, screen visible) · **GEN** ~10s → **CUT** ~5s · **VO:** *(none — let it play)*
 - **Camera:** over-the-shoulder on her monitor; a Google search **"Hoe start ik een eigen zaak?"**; one browser tab pops open, then another, then many in fast succession until the screen drowns in pop-ups; slow **push-in** to the screen.
 - **Runway prompt:**
 ```
-Over-the-shoulder shot of the woman at the grey desk looking at her computer monitor,
-a Google search page reads "Hoe start ik een eigen zaak?", suddenly browser tabs and
-pop-up windows start opening one after another faster and faster until the whole screen
-is overwhelmed with chaotic pop-ups, the camera slowly pushes in toward the screen,
-she looks overwhelmed. Cinematic, comedic overwhelm.
+Over-the-shoulder on her monitor: browser tabs and pop-up windows open one after another,
+faster and faster, until the screen fills with them; the camera slowly pushes in toward
+the screen as she sits back. She is alone.
 ```
 > **Tip:** the tab-explosion + final query text may render cleaner as a **real screen-capture** (record a browser, or build a quick mock) composited in the edit, rather than fully generated. See Non-Lore assets.
 
@@ -135,7 +128,14 @@ she looks overwhelmed. Cinematic, comedic overwhelm.
 
 ---
 
-## 9:16 social cut notes
+## Aspect: 5:7 portrait master — 864×1214 (decided & built)
+The Gemini dream frames are **~5:7, not 9:16**. All six keyframes are conformed to **864×1214** in **`pitch/keyframes/final/`** — **use that set for Runway** (every transform start/end pair matches exactly). Originals preserved in `pitch/keyframes/`.
+- **KF0, KF4** (shot landscape) → cropped to 5:7 **centered on Lore** (the monitor kept as a left-edge balance).
+- **KF1** (was 2:3) → trimmed top/bottom; **KF5** (was 3:4) → trimmed on the left to protect the on-screen Google search; **KF2/KF3** already 5:7.
+- KF0/KF4 read near-identical by design — KF4's "changed" feel comes from a **warmer grade + S6 performance**, not a regen.
+- A true-9:16 or 16:9 cut later = **Runway Expand** on the finished master (this 5:7 won't cleanly crop to either).
+
+## 9:16 social cut notes (legacy — now the master)
 - Re-frame each shot to center Lore (she's always centered, so it crops well).
 - Either generate native 9:16 from 9:16 keyframes, or reframe the 16:9 master in the edit.
 - The tab-explosion + landing page need a 9:16 capture/crop.
