@@ -47,6 +47,94 @@ def _is_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _clean_permits(items: object) -> list[dict]:
+    """Keep only renderable permit rows (a dict with a name).
+
+    Guards the "don't render an empty section" rule against a truthy-but-itemless
+    value — e.g. the agent persisting a placeholder list. A row with no
+    permit_name has nothing to show, so it never reaches the template.
+    """
+    if not isinstance(items, list):
+        return []
+    return [p for p in items if isinstance(p, dict) and p.get("permit_name")]
+
+
+def _clean_subsidies(items: object) -> list[dict]:
+    """Keep only renderable subsidy rows (a dict with a name) — see _clean_permits."""
+    if not isinstance(items, list):
+        return []
+    return [s for s in items if isinstance(s, dict) and s.get("name")]
+
+
+# dream_profile keys → founder-facing label, in display order. sector + founder_quote
+# are already in the header; nace_code is concrete and useful, so it stays.
+_DREAM_FACT_LABELS: list[tuple[str, str]] = [
+    ("scale", "Schaal"),
+    ("seats_guess", "Zitplaatsen"),
+    ("neighbourhood_anchor", "Buurt"),
+    ("vibe", "Sfeer"),
+    ("partners_guess", "Partners"),
+    ("nace_code", "NACE-code"),
+]
+
+
+def _dream_facts(dp: dict) -> list[dict]:
+    """The 'De droom' fiche — the profile bullets shown in the Droomkaart sidebar,
+    minus what the header already carries (sector, founder_quote)."""
+    facts: list[dict] = []
+    for key, label in _DREAM_FACT_LABELS:
+        value = dp.get(key)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        facts.append({"label": label, "value": str(value)})
+    budget = dp.get("budget_eur_guess")
+    if _is_number(budget):
+        facts.append({"label": "Startbudget", "value": f"± €{int(budget)}"})
+    return facts
+
+
+# Technical plumbing that leaks into niche_signals (layer ids, fetch errors) — never
+# founder-facing, so it must not surface in the printed pakket.
+def _is_plumbing_key(key: str) -> bool:
+    low = key.lower()
+    return "layer" in low or "error" in low
+
+
+def _niche_facts(ns: dict) -> list[dict]:
+    """The 'Niche' fiche — clean primitive signals, mirroring the Droomkaart, plus a
+    few peer-benchmark figures when present (the richest niche datum lives nested)."""
+    facts: list[dict] = []
+    for key, value in ns.items():
+        if _is_plumbing_key(key):
+            continue
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool) and str(value).strip():
+            facts.append({"label": key.replace("_", " "), "value": str(value)})
+
+    peers = ns.get("peer_benchmarks")
+    if isinstance(peers, dict):
+        count = peers.get("active_count_latest")
+        if _is_number(count):
+            facts.append({"label": "Vergelijkbare zaken", "value": f"± {int(count)}"})
+        growth = peers.get("growth_3y_pct")
+        if _is_number(growth):
+            facts.append({"label": "Groei (3 jaar)", "value": f"{growth:+.1f}%"})
+        bankruptcies = peers.get("bankruptcies_latest")
+        if _is_number(bankruptcies):
+            facts.append({"label": "Faillissementen (recent)", "value": str(int(bankruptcies))})
+    return facts
+
+
+def _niche_note(ns: dict) -> str:
+    """The peer-benchmark scope note — a proxy label rendered verbatim (never fake
+    certainty: the figures are cohort-level, not per-address)."""
+    peers = ns.get("peer_benchmarks")
+    if isinstance(peers, dict):
+        note = peers.get("scope_note")
+        if isinstance(note, str) and note.strip():
+            return note.strip()
+    return ""
+
+
 def _summary_chips(pkg: dict) -> list[dict]:
     """The most-important points, surfaced as a glanceable strip atop the pakket.
 
@@ -132,11 +220,18 @@ def build_package_context(store, session_id: str) -> dict | None:
         # Normalise the saved package through the same coalescing as build_package_dict,
         # so the template always receives clean defaults instead of None values.
         pkg = build_package_dict(pkg, session_id, generated_at=pkg.get("generated_at") or "")
+    # Drop itemless permit/subsidy rows up front so the chips, the section guards,
+    # and the template all see the same cleaned lists (no blank sections).
+    pkg["permit_checklist"] = _clean_permits(pkg.get("permit_checklist"))
+    pkg["subsidies"] = _clean_subsidies(pkg.get("subsidies"))
     if not _has_content(pkg):
         return None
     ctx = dict(pkg)
     ctx["narrative_paragraphs"] = _paragraphs(pkg.get("dream_narrative") or "")
     ctx["summary_chips"] = _summary_chips(pkg)
+    ctx["dream_facts"] = _dream_facts(pkg.get("dream_profile") or {})
+    ctx["niche_facts"] = _niche_facts(pkg.get("niche_signals") or {})
+    ctx["niche_note"] = _niche_note(pkg.get("niche_signals") or {})
     return ctx
 
 

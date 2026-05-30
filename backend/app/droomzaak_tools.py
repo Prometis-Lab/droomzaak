@@ -67,6 +67,74 @@ def _nace4(code: str) -> str:
     return n[:4] if len(n) >= 4 else n
 
 
+# ── sector → NACE back-fill ──────────────────────────────────────────────────
+# The extractor is told to leave nace_code null unless certain (honesty guard),
+# so a thin first message ("ik wil een bakkerij starten") yields a null code that
+# then propagates as "?" into every NACE-keyed tool (peer_benchmarks,
+# score_locations, permit_checklist). This deterministic lookup back-fills an
+# unambiguous NACE-BEL 2008 code from the sector word the model DID extract — a
+# fact ("bakkerij" → 10.711), not a guess. Returns a dotted 5-digit code, or ""
+# when the sector is genuinely ambiguous (stay honest, don't invent one).
+#
+# Ordered most-specific first; first matching rule wins.
+_SECTOR_NACE_RULES: list[tuple[tuple[str, ...], str]] = [
+    (("frituur", "friterie"),                                  "56.102"),
+    (("bakkerij", "bakker", "brood", "banket", "patisser",
+      "gebak", "koffiekoek"),                                  "10.711"),
+    (("chocolatier", "chocola", "praline"),                    "10.821"),
+    (("ijssalon", "schepijs", "ijsjes"),                       "56.109"),
+    (("traiteur", "catering"),                                 "56.210"),
+    (("restaurant", "bistro", "eetcafé", "eethuis",
+      "brasserie", "resto"),                                   "56.101"),
+    (("koffiebar", "coffee", "koffie", "café", "cafe",
+      "taverne", "wijnbar", "pub"),                            "56.301"),
+    (("brouwerij", "brewery"),                                 "11.050"),
+    (("slager", "beenhouwer"),                                 "47.220"),
+    (("viswinkel", "vishandel"),                               "47.230"),
+    (("kruidenier", "buurtwinkel", "nachtwinkel"),             "47.110"),
+    (("boekenwinkel", "boekhandel", "boeken"),                 "47.610"),
+    (("bloemenwinkel", "bloemist", "bloemen"),                 "47.761"),
+    (("kledingwinkel", "kleding", "boetiek", "mode"),          "47.711"),
+    (("schoenenwinkel", "schoenen"),                           "47.721"),
+    (("fietsenwinkel", "fietsen"),                             "47.642"),
+    (("juwelier", "juwelen"),                                  "47.770"),
+    (("kapper", "kapsalon"),                                   "96.021"),
+    (("schoonheidssalon", "schoonheid", "nagelstudio",
+      "nagels", "beauty"),                                     "96.022"),
+    (("fotograaf", "fotografie"),                              "74.201"),
+    (("boekhouder", "accountant", "boekhouding"),              "69.203"),
+    (("consultant", "consulting", "adviesbureau", "advies"),   "70.220"),
+    (("webshop", "webwinkel", "e-commerce", "online"),         "47.911"),
+    (("yoga", "fitness", "sportschool", "crossfit"),           "93.130"),
+]
+
+# sector_group enum → broad fallback (only the groups with one sane default;
+# "retail", "crafts", "other" stay unresolved rather than inventing a code).
+_SECTOR_GROUP_NACE = {
+    "horeca":     "56.101",
+    "consultant": "70.220",
+    "e_commerce": "47.911",
+}
+
+
+def _resolve_nace(profile: dict) -> str:
+    """Best-effort NACE-BEL code for a dream profile.
+
+    Returns the model's own nace_code if present, else a deterministic lookup
+    from the sector word / sector_group, else "" (genuinely ambiguous — stay
+    honest, don't invent one).
+    """
+    existing = (profile.get("nace_code") or "").strip()
+    if existing:
+        return existing
+    sector = (profile.get("sector") or "").lower()
+    if sector:
+        for keywords, code in _SECTOR_NACE_RULES:
+            if any(kw in sector for kw in keywords):
+                return code
+    return _SECTOR_GROUP_NACE.get((profile.get("sector_group") or "").lower(), "")
+
+
 # ── LLM seam (monkeypatched in tests) ────────────────────────────────────────
 
 async def complete_json(system: str, user: str) -> dict:
@@ -261,6 +329,16 @@ async def handle_extract_dream_profile(args: dict, run: AgentRun) -> dict:
     except Exception as exc:
         return {"error": f"profiel-extractie mislukt: {exc}"}
     profile.setdefault("founder_quote", args.get("text", ""))
+    # Deterministic NACE back-fill: the extractor leaves nace_code null unless
+    # certain, but downstream tools (peer_benchmarks, score_locations, permits)
+    # key on it. Resolve an unambiguous code from the sector the model DID extract
+    # so a thin first message still yields working analytics. Flag it as inferred
+    # (not model-asserted) for the debug overlay — honesty over hidden certainty.
+    if not (profile.get("nace_code") or "").strip():
+        resolved = _resolve_nace(profile)
+        if resolved:
+            profile["nace_code"] = resolved
+            profile["nace_code_inferred"] = True
     return profile
 
 
@@ -452,9 +530,14 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
     dream_profile = args.get("dream_profile") or {}
     top_n = int(args.get("top_n", 5))
 
-    # NACE2 for competition filter (broad: all NACE-56 = food service for bistro)
-    nace_raw = (dream_profile.get("nace_code") or "").replace(".", "").replace(" ", "")
-    nace2 = nace_raw[:2] if len(nace_raw) >= 2 else "56"
+    # NACE2 for the competition filter. Prefer the profile's code; if missing,
+    # resolve deterministically from the sector rather than silently defaulting to
+    # "56" (which scored every business as if it were horeca — a bakery counted
+    # restaurants as competitors). When it stays unresolved, pass "" so the
+    # competition CTE matches nothing and that signal honestly drops out of the
+    # score instead of masquerading as food service.
+    nace2 = _nace2(_resolve_nace(dream_profile))
+    competition_scored = bool(nace2)
 
     # Caller-supplied weight overrides (vacancy_score accepted but produces 0 — no source)
     weights = {"demographic_match": 1.0, "competition_density": 0.7,
@@ -534,8 +617,12 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
         "dataset_id": dataset_id,
         "ranked": ranked,
         "formula_label_nl": (
-            "Demografische match + transit − concurrentie − huurproxy − verstoring "
-            "(min-max genormaliseerd per sector; leegstand weggevallen — geen bron)"
+            "Demografische match + transit "
+            + ("− concurrentie " if competition_scored else "")
+            + "− huurproxy − verstoring (min-max genormaliseerd per sector; "
+            + ("" if competition_scored
+               else "concurrentie weggevallen — geen NACE bekend; ")
+            + "leegstand weggevallen — geen bron)"
         ),
     }
 
