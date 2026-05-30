@@ -3,7 +3,7 @@ import { ChapterRail, type ChapterId } from "./components/ChapterRail";
 import { MapCanvas, type MapMarker } from "./components/MapCanvas";
 import { Droomkaart } from "./components/Droomkaart";
 import { AgentPanel, type ChatMessage } from "./components/AgentPanel";
-import { getChapter, getSessionId, newSession, sendChat } from "./droomzaak/api";
+import { getChapter, getSessionId, newSession, putChapter, sendChat } from "./droomzaak/api";
 import type { ChapterState, HeatmapSpec, TransientDataset } from "./droomzaak/types";
 
 // ── localStorage persistence helpers ─────────────────────────────
@@ -121,7 +121,12 @@ export default function App() {
       };
       const res = await sendChat(text, sessionId, context);
       setMessages((m) => [...m, { role: "agent", text: res.reply }]);
-      if (res.chapter_state) setChapterState(res.chapter_state);
+      if (res.chapter_state) {
+        setChapterState(res.chapter_state);
+        // A completed chat turn with a confirmed location commits it — lock
+        // against further marker clicks overwriting the agent's (or user's) choice.
+        if (res.chapter_state.chosen_location != null) provisionalRef.current = false;
+      }
       if (res.datasets) setDatasets((d) => ({ ...d, ...res.datasets }));
       const newMarkers: MapMarker[] = [];
       const newFilters: Record<string, unknown[] | null> = {};
@@ -167,6 +172,39 @@ export default function App() {
       setBusy(false);
     }
   }
+
+  // ── Marker click → chosen location ───────────────────────────
+  // provisional = true means the user has clicked a marker but the conversation
+  // has not yet processed a turn that confirms chosen_location.  While provisional,
+  // subsequent clicks overwrite the stored location (last click wins).
+  // Once a chat turn completes with a non-null chosen_location the flag is cleared
+  // (committed) and further clicks become no-ops.
+  //
+  // putChapter routes through the same validate_set_chapter_state path the agent
+  // uses — safe, audited, no parallel mutation. We use the marker label as a
+  // display value (never fabricate an address); coordinates are always exact.
+  const provisionalRef = useRef(false);
+
+  const handleMarkerClick = useCallback(
+    (mk: MapMarker) => {
+      // Committed = a chat turn has already confirmed chosen_location. Lock out clicks.
+      if (chapterState?.chosen_location != null && !provisionalRef.current) return;
+      const patch = {
+        chosen_location: {
+          coordinates: mk.coordinates,
+          // Use the label as the address display value when no real address is known.
+          // The agent will overwrite this with a proper address when it calls set_chapter_state.
+          address: mk.label ?? null,
+          wijk_nl: null,
+        },
+      };
+      provisionalRef.current = true;
+      putChapter(sessionId, patch)
+        .then((d) => setChapterState(d.chapter_state))
+        .catch(() => void 0); // non-blocking: UI still shows the marker
+    },
+    [chapterState, sessionId],
+  );
 
   // ── Drag: vertical handle (panel width) ───────────────────────
   const onPanelHandlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -257,6 +295,7 @@ export default function App() {
         hiddenLayers={hiddenLayers}
         layerStyles={layerStyles}
         onSelectDataset={setSelectedDatasetId}
+        onMarkerClick={handleMarkerClick}
       />
 
       {panelCollapsed ? (

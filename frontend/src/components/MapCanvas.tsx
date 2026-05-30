@@ -9,6 +9,7 @@ import {
   joinScoresToSectors,
 } from "../droomzaak/heatmap";
 import { FeatureInfoPopup } from "./FeatureInfoPopup";
+import { MarkerStreetView } from "./MarkerStreetView";
 
 // Cached render-tier asset: all 254 Ghent statistical-sector polygons, keyed by
 // nis9_code. Built by scripts/build_sector_geojson.py. Score data (REASON tier)
@@ -115,6 +116,9 @@ type Props = {
   // Reports which dataset a map click landed on (null when the click hit nothing)
   // so the agent can be told the founder's selected_dataset_id next turn.
   onSelectDataset?: (datasetId: string | null) => void;
+  // Called when the user clicks an agent-placed marker — provides the marker's
+  // coordinates and label so the parent can persist it as chosen_location.
+  onMarkerClick?: (marker: MapMarker) => void;
 };
 
 /** Determine whether a GeoJSON FeatureCollection contains polygon geometry. */
@@ -166,7 +170,7 @@ function extendBoundsFromGeometry(
   }
 }
 
-export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hiddenLayers = [], layerStyles = {}, onSelectDataset }: Props) {
+export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hiddenLayers = [], layerStyles = {}, onSelectDataset, onMarkerClick }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -176,6 +180,10 @@ export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hidd
   // stale closure without re-binding the map listener every render).
   const onSelectRef = useRef(onSelectDataset);
   onSelectRef.current = onSelectDataset;
+  // Latest onMarkerClick callback — kept in a ref so the marker effect's closure
+  // always reads the current value without needing to re-run on every render.
+  const onMarkerClickRef = useRef(onMarkerClick);
+  onMarkerClickRef.current = onMarkerClick;
   // Cached sector polygons (render tier), loaded once; version bump retriggers
   // the dataset effect when the async fetch resolves after mount.
   const sectorsRef = useRef<FeatureCollection | null>(null);
@@ -183,6 +191,13 @@ export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hidd
   // Dataset ids already framed — so the city-wide score choropleth doesn't keep
   // hijacking the camera when a later, focused layer (an isochrone) is added.
   const fittedRef = useRef<Set<string>>(new Set());
+
+  // Street View popup: set when user clicks an agent-placed marker.
+  const [streetView, setStreetView] = useState<{ lat: number; lng: number; heading?: number } | null>(null);
+  // Stable ref so the marker click closure always calls the latest setter
+  // without requiring the marker effect to re-run (avoids stale closures).
+  const setStreetViewRef = useRef(setStreetView);
+  setStreetViewRef.current = setStreetView;
 
   // Click-to-inspect: the feature popup's content + anchor. Rendered via portal
   // into a container that doubles as the MapLibre Popup's DOM content.
@@ -447,6 +462,27 @@ export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hidd
         .setLngLat(mk.coordinates)
         .setPopup(mk.label ? new maplibregl.Popup().setText(mk.label) : undefined)
         .addTo(map);
+
+      // Click on the marker element: open the Street View card. Derive heading
+      // as the bearing from the map center toward the marker so the image looks
+      // at the location from street level, consistent with the Map-pilot-v2 pattern.
+      const el = marker.getElement();
+      el.style.cursor = "pointer";
+      const [lng, lat] = mk.coordinates;
+      const clickHandler = (e: Event) => {
+        e.stopPropagation(); // don't also fire the map's generic click
+        const center = map.getCenter();
+        const dLng = lng - center.lng;
+        const dLat = lat - center.lat;
+        // Simple planar bearing (good enough at city scale).
+        const heading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+        setStreetViewRef.current({ lat, lng, heading: Math.round(heading) });
+        // Notify the parent that this marker was clicked so it can persist it
+        // as the chosen business location if none has been explicitly set yet.
+        onMarkerClickRef.current?.(mk);
+      };
+      el.addEventListener("click", clickHandler);
+
       markerObjsRef.current.push(marker);
     }
     if (markers.length === 1) map.flyTo({ center: markers[0].coordinates, zoom: 15, duration: 600 });
@@ -461,6 +497,14 @@ export function MapCanvas({ datasets, markers, filters = {}, heatmaps = {}, hidd
           <FeatureInfoPopup properties={selected?.properties ?? null} onClose={() => setSelected(null)} />,
           popupContainerRef.current
         )}
+      {streetView && (
+        <MarkerStreetView
+          lat={streetView.lat}
+          lng={streetView.lng}
+          heading={streetView.heading}
+          onClose={() => setStreetView(null)}
+        />
+      )}
     </section>
   );
 }
