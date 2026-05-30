@@ -1,5 +1,6 @@
 import { useState, type Ref } from "react";
 import type { ChapterId } from "./ChapterRail";
+import { ChatMarkdown } from "./ChatMarkdown";
 
 export interface ChatMessage {
   role: "user" | "agent";
@@ -43,7 +44,7 @@ export function AgentPanel({ current, messages, busy, onSend, chatInputRef }: Pr
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg ${m.role}`}>
-            {m.text}
+            {m.role === "agent" ? <ChatMarkdown text={m.text} /> : m.text}
           </div>
         ))}
         {busy && <div className="chat-msg agent thinking">Droomzaak denkt na…</div>}

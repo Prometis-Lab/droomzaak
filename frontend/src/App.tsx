@@ -25,6 +25,21 @@ const PANEL_MAX = 640;
 const PANEL_DEFAULT = 360;
 const SPLIT_MIN = 48; // px — minimum section height (header-only)
 
+// ── Mobile breakpoint ─────────────────────────────────────────────
+// Phones get a stacked layout (rail+map on top, chat below, Droomkaart as a
+// sheet); desktop keeps the resizable three-column grid. Drives a separate
+// render branch rather than CSS-only because the panel structure differs.
+function useIsMobile(query = "(max-width: 768px)") {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = () => setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return isMobile;
+}
+
 // ── Chevron icon ──────────────────────────────────────────────────
 function Chevron({ open, vertical = false }: { open: boolean; vertical?: boolean }) {
   const angle = vertical
@@ -63,6 +78,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [landed, setLanded] = useState(false);
   const chatInputRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [mobileKaartOpen, setMobileKaartOpen] = useState(false);
 
   // ── Layout state (persisted) ──────────────────────────────────
   const [panelWidth, setPanelWidth] = useState(() => LS.get("panelWidth", PANEL_DEFAULT));
@@ -287,6 +304,76 @@ export default function App() {
   // ── Droomkaart height (flex basis override when split is set) ─
   const droomH = splitPx > 0 ? `${splitPx}px` : undefined;
 
+  // Shared between the desktop and mobile branches so the map and the
+  // fresh-session landing overlay stay in lock-step across layouts.
+  const mapCanvas = (
+    <MapCanvas
+      datasets={datasets}
+      markers={markers}
+      filters={filters}
+      heatmaps={heatmaps}
+      hiddenLayers={hiddenLayers}
+      layerStyles={layerStyles}
+      onSelectDataset={setSelectedDatasetId}
+      onMarkerClick={handleMarkerClick}
+    />
+  );
+
+  const landingOverlay = !landed && (
+    <DreamLanding
+      targetRef={chatInputRef}
+      onDream={(text) => void handleSend(text)}
+      onExited={() => setLanded(true)}
+    />
+  );
+
+  // ── Mobile layout: rail + map on top, chat full-width below, Droomkaart
+  //    reachable as a full-screen sheet. Resize/collapse chrome is dropped. ──
+  if (isMobile) {
+    return (
+      <div className="app app--mobile">
+        <ChapterRail current={current} />
+        {mapCanvas}
+        <div className="mobile-chat">
+          <div className="mobile-chat-bar">
+            <button
+              type="button"
+              className="mobile-kaart-btn"
+              onClick={() => setMobileKaartOpen(true)}
+              title="Bekijk je Droomkaart en pakket"
+            >
+              Droomkaart
+            </button>
+            <button
+              type="button"
+              className="new-chat-btn"
+              onClick={handleNewChat}
+              disabled={busy}
+              title="Begin een nieuwe droom"
+            >
+              + Nieuwe droom
+            </button>
+          </div>
+          <AgentPanel current={current} messages={messages} busy={busy} onSend={handleSend} chatInputRef={chatInputRef} />
+        </div>
+        {mobileKaartOpen && (
+          <div className="mobile-sheet">
+            <button
+              type="button"
+              className="mobile-sheet-close"
+              onClick={() => setMobileKaartOpen(false)}
+              title="Sluiten"
+            >
+              ×
+            </button>
+            <Droomkaart state={chapterState} sessionId={sessionId} />
+          </div>
+        )}
+        {landingOverlay}
+      </div>
+    );
+  }
+
   return (
     <div
       className="app"
@@ -294,16 +381,7 @@ export default function App() {
     >
       <ChapterRail current={current} />
 
-      <MapCanvas
-        datasets={datasets}
-        markers={markers}
-        filters={filters}
-        heatmaps={heatmaps}
-        hiddenLayers={hiddenLayers}
-        layerStyles={layerStyles}
-        onSelectDataset={setSelectedDatasetId}
-        onMarkerClick={handleMarkerClick}
-      />
+      {mapCanvas}
 
       {panelCollapsed ? (
         collapsedTab
@@ -400,13 +478,7 @@ export default function App() {
       )}
 
       {/* Overlay stays mounted through its exit animation; onExited flips `landed`. */}
-      {!landed && (
-        <DreamLanding
-          targetRef={chatInputRef}
-          onDream={(text) => void handleSend(text)}
-          onExited={() => setLanded(true)}
-        />
-      )}
+      {landingOverlay}
     </div>
   );
 }

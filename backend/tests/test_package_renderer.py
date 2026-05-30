@@ -93,6 +93,47 @@ def test_greys_out_ended_subsidies(_isolated_store):
     assert "dz-ended" in html                   # greyed-out class applied
 
 
+def test_renders_dream_and_niche_fiche(_isolated_store):
+    """De droom + Niche fiche (the Droomkaart sidebar facts) surface in the pakket."""
+    sid = "sess-fiche"
+    pkg = _full_package(sid)
+    pkg["dream_profile"] = {
+        "sector": "veganistische bistro", "nace_code": "56.101",
+        "founder_quote": "Een kleine plek bij de Vrijdagmarkt.",
+        "scale": "small", "vibe": "knus", "neighbourhood_anchor": "Vrijdagmarkt",
+        "budget_eur_guess": 40000,
+    }
+    pkg["niche_signals"] = {
+        "trend": "stijgend",
+        "osm_layer_id": "osm-shop-abc",          # plumbing — must NOT render
+        "peer_benchmarks": {"active_count_latest": 12, "growth_3y_pct": 4.2,
+                            "scope_note": "VAT: Gent arrondissement."},
+    }
+    _isolated_store.save_package(sid, pkg)
+    html = _client().get(f"/pakket/{sid}").text
+    assert "De droom" in html and "Niche" in html
+    assert "knus" in html and "Vrijdagmarkt" in html          # dream facts
+    assert "± €40000" in html                                  # budget formatted
+    assert "trend" in html                                     # primitive niche signal
+    assert "± 12" in html and "+4.2%" in html                  # peer-benchmark figures
+    assert "VAT: Gent arrondissement." in html                 # scope note (proxy label)
+    assert "osm-shop-abc" not in html                          # plumbing filtered out
+
+
+def test_omits_itemless_permits_and_subsidies(_isolated_store):
+    """A truthy-but-itemless permit/subsidy list renders no section (don't add
+    what isn't worth mentioning)."""
+    sid = "sess-itemless"
+    pkg = _full_package(sid)
+    pkg["permit_checklist"] = [{"rule_id": "x"}]               # no permit_name → not renderable
+    pkg["subsidies"] = [{"subsidy_id": "y"}]                   # no name → not renderable
+    _isolated_store.save_package(sid, pkg)
+    res = _client().get(f"/pakket/{sid}")
+    assert res.status_code == 200                  # still renders (it has a dream + narrative)
+    assert "<h2>Vergunningen</h2>" not in res.text
+    assert "Subsidies" not in res.text
+
+
 def test_fallback_from_chapter_state(_isolated_store):
     sid = "sess-state"
     state = default_chapter_state()
@@ -160,6 +201,45 @@ def test_deep_link_sanitised_on_chapter_state_path(_isolated_store):
     html = _client().get(f"/pakket/{sid}").text
     assert "javascript:" not in html
     assert "Boobytrap" in html  # the entry still renders, just without the link
+
+
+def test_pdf_download_returns_pdf(_isolated_store, monkeypatch):
+    """The /pdf route hands back an attachment with the bytes from html_to_pdf
+    (monkeypatched — tests never launch a real browser)."""
+    from backend.app import pdf_render
+
+    captured = {}
+
+    async def fake_html_to_pdf(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-1.4 fake bytes"
+
+    monkeypatch.setattr(pdf_render, "html_to_pdf", fake_html_to_pdf)
+    sid = "sess-pdf"
+    _isolated_store.save_package(sid, _full_package(sid))
+    res = _client().get(f"/pakket/{sid}/pdf")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert "attachment" in res.headers["content-disposition"]
+    assert res.content == b"%PDF-1.4 fake bytes"
+    assert "Terrasvergunning" in captured["html"]   # the real rendered pakket HTML was passed
+
+
+def test_pdf_download_404_for_empty_session(_isolated_store):
+    assert _client().get("/pakket/does-not-exist/pdf").status_code == 404
+
+
+def test_pdf_download_503_when_engine_unavailable(_isolated_store, monkeypatch):
+    """If the PDF engine/Chromium is missing, degrade to 503 (browser-print stays usable)."""
+    from backend.app import pdf_render
+
+    async def boom(html: str) -> bytes:
+        raise RuntimeError("chromium not installed")
+
+    monkeypatch.setattr(pdf_render, "html_to_pdf", boom)
+    sid = "sess-pdf-fail"
+    _isolated_store.save_package(sid, _full_package(sid))
+    assert _client().get(f"/pakket/{sid}/pdf").status_code == 503
 
 
 def test_compose_from_state_endpoint(_isolated_store):

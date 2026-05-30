@@ -71,7 +71,14 @@ export function Droomkaart({ state, sessionId }: { state: ChapterState | null; s
         {state?.package_url && (
           <div className="dk-card">
             <h3>Pakket</h3>
-            <a href={state.package_url} target="_blank" rel="noreferrer">Open je Droomzaak-pakket →</a>
+            <a
+              className="dk-pakket-btn"
+              href={state.package_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open je Droomzaak-pakket →
+            </a>
           </div>
         )}
         {sessionId && state?.current_chapter === "5_pakket" && !state?.package_url && (

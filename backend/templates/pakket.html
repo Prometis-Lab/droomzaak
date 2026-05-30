@@ -41,6 +41,7 @@
       font: inherit; font-size: 14px; cursor: pointer;
       border: 1px solid var(--terra); border-radius: 999px;
       padding: 8px 18px; background: var(--terra); color: #fff;
+      text-decoration: none; display: inline-block; line-height: 1.2;
       transition: opacity 0.15s ease;
     }
     .dz-btn:hover { opacity: 0.88; }
@@ -97,7 +98,8 @@
 <body>
 
 <div class="dz-actions">
-  <button type="button" class="dz-btn" onclick="window.print()">Download als PDF</button>
+  <a class="dz-btn" href="/pakket/{{ session_id }}/pdf">Download als PDF</a>
+  <button type="button" class="dz-btn dz-btn--ghost" onclick="window.print()">Afdrukken</button>
 </div>
 
 <div class="sheet">
@@ -131,6 +133,25 @@
   <section class="dz-block dz-tuesday">
     <h2>Een dinsdagochtend</h2>
     <p>{{ tuesday_morning }}</p>
+  </section>
+  {% endif %}
+
+  {% if dream_facts %}
+  <section class="dz-block">
+    <h2>De droom</h2>
+    <dl class="dz-facts">
+      {% for fact in dream_facts %}<dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd>{% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+
+  {% if niche_facts %}
+  <section class="dz-block">
+    <h2>Niche</h2>
+    <dl class="dz-facts">
+      {% for fact in niche_facts %}<dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd>{% endfor %}
+    </dl>
+    {% if niche_note %}<p class="dz-proxy">{{ niche_note }}</p>{% endif %}
   </section>
   {% endif %}
 

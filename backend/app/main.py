@@ -12,12 +12,12 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 
-from backend.app import agent_trace, droomzaak_chapters, package_view, settings
+from backend.app import agent_trace, droomzaak_chapters, package_view, pdf_render, settings
 from backend.app.storage import CatalogStore, get_store
 
 log = logging.getLogger("droomzaak")
@@ -170,3 +170,25 @@ async def render_pakket(session_id: str, store: CatalogStore = StoreDep) -> HTML
     if ctx is None:
         raise HTTPException(404, "Nog geen pakket voor deze sessie.")
     return HTMLResponse(package_view.render_package_html(ctx))
+
+
+@app.get("/pakket/{session_id}/pdf")
+async def download_pakket_pdf(session_id: str, store: CatalogStore = StoreDep) -> Response:
+    """One-click PDF: render the same pakket HTML to a real PDF via headless Chromium.
+
+    503 (not 500) if the PDF engine/Chromium is unavailable, so the page's
+    browser-print fallback stays the graceful degradation path."""
+    ctx = package_view.build_package_context(store, session_id)
+    if ctx is None:
+        raise HTTPException(404, "Nog geen pakket voor deze sessie.")
+    html = package_view.render_package_html(ctx)
+    try:
+        pdf_bytes = await pdf_render.html_to_pdf(html)
+    except Exception as exc:  # ImportError / missing Chromium / render failure
+        log.warning("PDF-generatie mislukt voor sessie %s: %s", session_id, exc)
+        raise HTTPException(503, "PDF-generatie is niet beschikbaar; gebruik 'Afdrukken'.") from exc
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="droomzaak-pakket.pdf"'},
+    )
