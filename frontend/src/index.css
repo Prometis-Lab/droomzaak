@@ -497,7 +497,7 @@ body {
   object-fit: contain;
 }
 .dream-landing-wordmark {
-  font-family: var(--font);
+  font-family: var(--font-ui);
   font-size: 28px;
   font-weight: 700;
   color: var(--terracotta-deep);
@@ -505,7 +505,7 @@ body {
   margin: 0;
 }
 .dream-landing-tagline {
-  font-family: var(--font);
+  font-family: var(--font-ui);
   font-size: 16px;
   font-style: italic;
   color: var(--ink-soft);
@@ -557,3 +557,102 @@ body {
   .dream-landing { transition: opacity 0.3s linear; }
   .dream-landing-card--flying { transition: opacity 0.3s linear; }
 }
+
+/* ── Mobile layout ─────────────────────────────────────────────────
+   Driven by the JS `useIsMobile` branch in App.tsx (not a media query):
+   rail + map on top, chat full-width below, Droomkaart as a sheet.
+   `.app.app--mobile` outranks the base `.app` grid template. */
+.app.app--mobile {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 55dvh 1fr;
+  height: 100dvh;
+}
+.app--mobile .chapter-rail {
+  grid-row: 1;
+  grid-column: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 4px;
+  gap: 2px;
+  border-right: none;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.app--mobile .chapter-rail .brand { display: none; }
+.app--mobile .chapter-step { width: auto; flex: 0 0 auto; padding: 5px 8px; font-size: 9px; gap: 3px; }
+.app--mobile .chapter-step .icon { font-size: 18px; }
+.app--mobile .chapter-step .label { display: none; }
+
+.app--mobile .map-canvas { grid-row: 2; grid-column: 1; }
+
+.mobile-chat {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
+  border-top: 2px solid var(--line);
+}
+.mobile-chat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.mobile-kaart-btn {
+  background: var(--olive);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mobile-chat .agent-panel-body {
+  flex: 1;
+  min-height: 0;
+  border-top: none;
+}
+
+/* Droomkaart sheet — full-screen overlay reached from the chat toolbar. */
+.mobile-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+.mobile-sheet .droomkaart {
+  flex: 1;
+  min-height: 0;
+  border-left: none;
+}
+.mobile-sheet-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-sheet-close:hover { background: var(--terracotta-deep); color: #fff; }
