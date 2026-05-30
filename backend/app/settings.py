@@ -9,6 +9,14 @@ from __future__ import annotations
 
 import os
 
+try:  # Load .env.demo then .env (gitignored) so localhost needs no manual export.
+    from dotenv import load_dotenv
+
+    load_dotenv(".env.demo")
+    load_dotenv(".env")
+except Exception:  # pragma: no cover - dotenv is optional
+    pass
+
 
 def _csv(name: str, default: str) -> list[str]:
     raw = os.environ.get(name, default)
