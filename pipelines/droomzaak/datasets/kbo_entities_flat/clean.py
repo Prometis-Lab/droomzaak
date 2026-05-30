@@ -13,7 +13,7 @@ trading address at ~98% — better than routing through the enterprise seat.
 The VAT chain is for *history/financials*, not for current geocoding (which would
 collapse establishments onto the enterprise seat). See joins.md.
 
-Requires data/canonical/kbo_geocode_gent.parquet first (run kbo_correspondence/clean.py).
+Requires canonical/kbo_geocode_gent.parquet first (run kbo_correspondence/clean.py).
 """
 
 from __future__ import annotations
@@ -23,17 +23,30 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from _common import (  # noqa: E402
-    CANONICAL, connect, gent_postcode_filter, nace5, norm_ent, src, write,
+    CANONICAL,
+    connect,
+    gent_postcode_filter,
+    nace5,
+    norm_ent,
+    src,
+    write,
 )
 
 # Flat address column → geocode-correspondence canonical name (flat has no box).
-ADDR = {"street": "StreetNL", "house_nbr": "HouseNumber", "postal": "Zipcode", "city": "MunicipalityNL"}
+ADDR = {
+    "street": "StreetNL",
+    "house_nbr": "HouseNumber",
+    "postal": "Zipcode",
+    "city": "MunicipalityNL",
+}
 
 
 def build() -> Path:
     geocode = CANONICAL / "kbo_geocode_gent.parquet"
     if not geocode.exists():
-        raise FileNotFoundError("Run kbo_correspondence/clean.py first (needs kbo_geocode_gent.parquet)")
+        raise FileNotFoundError(
+            "Run kbo_correspondence/clean.py first (needs kbo_geocode_gent.parquet)"
+        )
 
     con = connect()
     flat = src("snapshots/kbo/kbo-entities-flat/kbo_*.parquet")
@@ -49,13 +62,17 @@ def build() -> Path:
         ) = 1
     """)
 
-    on = " AND ".join(f"f.{src_col} IS NOT DISTINCT FROM g.{canon}" for canon, src_col in ADDR.items())
+    on = " AND ".join(
+        f"f.{src_col} IS NOT DISTINCT FROM g.{canon}" for canon, src_col in ADDR.items()
+    )
     select = f"""
         SELECT
             f.KBO_ID, f.EntityType,
             f.EnterpriseNumber, {norm_ent("f.EnterpriseNumber")} AS ent, f.EstablishmentNumber,
             coalesce(f.CommercialName, f.OfficialName, f.Abbreviation) AS name,
-            {nace5("f.NACEMain")} AS nace5, f.JuridicalForm AS juridical_form,
+            -- KBO NACEMain carries 6-7 digit sub-codes; truncate to the 5-digit
+            -- NACE-BEL 2008 so it resolves against nace_ref and the peer cubes.
+            left({nace5("f.NACEMain")}, 5) AS nace5, f.JuridicalForm AS juridical_form,
             f.Zipcode AS postal, f.MunicipalityNL AS city, f.StreetNL AS street, f.HouseNumber AS house_nbr,
             g.lon, g.lat, g.nis9_code, g.capakey,
             (g.lon IS NOT NULL) AS geocoded

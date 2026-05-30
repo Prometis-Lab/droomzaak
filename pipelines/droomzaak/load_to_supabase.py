@@ -32,23 +32,57 @@ from _common import CANONICAL, REPO_ROOT  # noqa: E402
 
 PG_SCHEMA = "droomzaak"
 
-# Postgres table name → canonical Parquet stem in data/canonical/.
-# Add a row here as each table's clean.py + migration land. (geo_* tables carry
-# WKB geometry and need a PostGIS-aware migration — added in the fan-out, not here.)
+# Postgres table name (in the droomzaak schema) → canonical Parquet stem in
+# data/canonical/. One row per table the migration (supabase/scripts/canonical_tables.sql)
+# declares; column ORDER in that migration must match each clean.py SELECT (position-based
+# INSERT). Build with: uv run python pipelines/droomzaak/build.py
 TABLES = {
+    "nace_ref": "nace_ref",
     "business_registry": "business_registry_gent",
+    "business_financials": "business_financials_gent",
+    "business_registry_history": "business_registry_history_gent",
+    "demographics_sector": "demographics_sector_gent",
+    "housing_price_sector": "housing_price_sector_gent",
+    "transit_access_sector": "transit_access_sector_gent",
+    "disruption_events": "disruption_events_gent",
+    "permits_events": "permits_events_gent",
+    "gent_points": "gent_points_gent",
+    "peer_vat_nace_empl_gentarr": "peer_vat_nace_empl_gentarr",
+    "peer_bankruptcies": "peer_bankruptcies_gent",
+    "peer_starters_flanders": "peer_starters_flanders",
+    "geo_sectors": "geo_sectors_gent",
+    "geo_wijken": "geo_wijken_gent",
+    "kbo_geocode": "kbo_geocode_gent",
+}
+
+# Per-table DuckDB SELECT list for the INSERT (defaults to "*"). The geo spine carries a
+# GeoParquet GEOMETRY column that has no Postgres equivalent without PostGIS, so we ship it
+# as raw WKB into a `bytea` column. `* REPLACE` swaps only that column in place, keeping the
+# position-based column count intact (the render tier holds the usable polygons anyway).
+_GEOM_TO_WKB = "* REPLACE (ST_AsWKB(geom_wkb) AS geom_wkb)"
+SELECT_LIST = {
+    "geo_sectors": _GEOM_TO_WKB,
+    "geo_wijken": _GEOM_TO_WKB,
 }
 
 
 def resolve_dsn() -> str:
-    """Postgres connection string from the env; .env.demo (gitignored) is loaded if present."""
+    """Postgres connection string from the env; .env.demo (gitignored) is loaded if present.
+
+    Only a value that actually looks like a Postgres URI counts — a blank or a stray
+    comment left in .env.demo (e.g. `DROOMZAAK_PG_DSN= # …`) is skipped, not connected
+    to. Without this guard a non-URI placeholder in the preferred var would shadow a
+    valid fallback and the loader would dial a garbage target.
+    """
     load_dotenv(REPO_ROOT / ".env.demo")
-    dsn = os.environ.get("DROOMZAAK_PG_DSN") or os.environ.get("SUPABASE_DB_URL")
-    if not dsn:
-        raise RuntimeError(
-            "No Postgres DSN — set DROOMZAAK_PG_DSN or SUPABASE_DB_URL (see .env.demo)."
-        )
-    return dsn
+    for var in ("DROOMZAAK_PG_DSN", "SUPABASE_DB_URL"):
+        value = (os.environ.get(var) or "").strip()
+        if value.startswith(("postgres://", "postgresql://")):
+            return value
+    raise RuntimeError(
+        "No usable Postgres DSN — set DROOMZAAK_PG_DSN or SUPABASE_DB_URL to a "
+        "postgres://… URI (see .env.demo)."
+    )
 
 
 # SAST note: the `# nosemgrep` lines below interpolate ONLY code-internal values into SQL
@@ -56,13 +90,19 @@ def resolve_dsn() -> str:
 # (a key from the internal TABLES dict, gated by the KeyError above). SQL identifiers and the
 # ATTACH connection string can never be bind parameters; the variable runtime value (the
 # Parquet path) IS bound via `?`. No user/model input reaches these strings.
-def attach_postgres(con: duckdb.DuckDBPyConnection, dsn: str, alias: str = "pg") -> None:
+def attach_postgres(
+    con: duckdb.DuckDBPyConnection, dsn: str, alias: str = "pg"
+) -> None:
     con.execute("INSTALL postgres; LOAD postgres;")
-    con.execute(f"ATTACH '{dsn}' AS {alias} (TYPE postgres)")  # nosemgrep: sqlalchemy-execute-raw-query, formatted-sql-query
+    con.execute("INSTALL spatial; LOAD spatial;")  # ST_AsWKB for geo-spine bytea load
+    con.execute(f"ATTACH '{dsn}' AS {alias} (TYPE postgres)")  # nosemgrep
 
 
 def load_canonical(
-    con: duckdb.DuckDBPyConnection, name: str, alias: str = "pg", schema: str = PG_SCHEMA
+    con: duckdb.DuckDBPyConnection,
+    name: str,
+    alias: str = "pg",
+    schema: str = PG_SCHEMA,
 ) -> int:
     """DELETE+INSERT one canonical Parquet into `{alias}.{schema}.{name}`; return rows landed.
 
@@ -73,7 +113,9 @@ def load_canonical(
         raise KeyError(f"Unknown table {name!r}; known: {', '.join(sorted(TABLES))}")
     parquet = CANONICAL / f"{TABLES[name]}.parquet"
     if not parquet.exists():
-        raise FileNotFoundError(f"Missing {parquet} — run the clean.py for {name} first.")
+        raise FileNotFoundError(
+            f"Missing {parquet} — run the clean.py for {name} first."
+        )
 
     target = f"{alias}.{schema}.{name}"
     pq = str(parquet)
@@ -82,9 +124,11 @@ def load_canonical(
     # possible — column ORDER is the contract (documented in the migration). Guard it: a
     # column-count mismatch means clean.py and the migration have drifted; fail loudly
     # rather than silently misalign. (A reorder of two same-type columns still slips — the
-    # column order in business_registry.sql is the source of truth.)
-    n_parquet = len(con.execute("SELECT * FROM read_parquet(?) LIMIT 0", [pq]).description)
-    n_target = len(con.execute(f"DESCRIBE {target}").fetchall())  # nosemgrep: sqlalchemy-execute-raw-query, formatted-sql-query
+    # column order in supabase/scripts/canonical_tables.sql is the source of truth.)
+    n_parquet = len(
+        con.execute("SELECT * FROM read_parquet(?) LIMIT 0", [pq]).description
+    )
+    n_target = len(con.execute(f"DESCRIBE {target}").fetchall())  # nosemgrep
     if n_parquet != n_target:
         raise ValueError(
             f"{name}: Parquet has {n_parquet} columns but {target} has {n_target} — "
@@ -94,20 +138,25 @@ def load_canonical(
     src_rows = con.execute("SELECT count(*) FROM read_parquet(?)", [pq]).fetchone()[0]
     con.execute("BEGIN")
     try:
-        con.execute(f"DELETE FROM {target}")  # nosemgrep: sqlalchemy-execute-raw-query, formatted-sql-query
-        con.execute(f"INSERT INTO {target} SELECT * FROM read_parquet(?)", [pq])  # nosemgrep: sqlalchemy-execute-raw-query, formatted-sql-query
+        con.execute(f"DELETE FROM {target}")  # nosemgrep
+        con.execute(  # nosemgrep
+            f"INSERT INTO {target} SELECT {SELECT_LIST.get(name, '*')} FROM read_parquet(?)",
+            [pq],
+        )
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
-    landed = con.execute(f"SELECT count(*) FROM {target}").fetchone()[0]  # nosemgrep: sqlalchemy-execute-raw-query, formatted-sql-query
+    landed = con.execute(f"SELECT count(*) FROM {target}").fetchone()[0]  # nosemgrep
     logger.success(f"{name}: {landed:,} rows → {target} (source had {src_rows:,})")
     return landed
 
 
 def main(argv: list[str]) -> None:
     if not argv or argv[0] in {"-h", "--help"}:
-        logger.info(f"usage: load_to_supabase.py <table|all>   (tables: {', '.join(sorted(TABLES))})")
+        logger.info(
+            f"usage: load_to_supabase.py <table|all>   (tables: {', '.join(sorted(TABLES))})"
+        )
         return
     names = sorted(TABLES) if argv[0] == "all" else argv
 

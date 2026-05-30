@@ -2,11 +2,9 @@
 
     uv run python pipelines/droomzaak/build.py
 
-Order matters: geo_admin builds the spatial spine; kbo_correspondence produces the
-geocode bridge that kbo_entities_flat (business_registry) consumes by address.
-
-Cleaning scripts land here one-by-one; add each name to ORDER in dependency order as
-it lands.
+Order matters: geo_admin builds the spatial spine (geo_sectors_gent) that every
+point-in-polygon script depends on, so it runs first. kbo_correspondence produces the
+geocode bridge that kbo_entities_flat consumes via the address join.
 """
 
 from __future__ import annotations
@@ -17,8 +15,23 @@ from pathlib import Path
 from loguru import logger
 
 DATASETS = Path(__file__).resolve().parent / "datasets"
-# Dependency order, not alphabetical.
-ORDER = ["geo_admin", "kbo_correspondence", "kbo_entities_flat"]
+# Dependency order, not alphabetical. geo_admin first: it produces geo_sectors_gent,
+# the spatial spine every point-in-polygon script loads via _common.load_sectors.
+ORDER = [
+    "geo_admin",
+    "kbo_correspondence",
+    "kbo_entities_flat",
+    "belfirst",
+    "nace_ref",
+    "demographics",
+    "statbel_peers",
+    "immo_sector",
+    "transit_access",
+    "disruption",
+    "permits",
+    "gent_points",
+    "kbo_history",
+]
 
 
 def _run(name: str) -> None:

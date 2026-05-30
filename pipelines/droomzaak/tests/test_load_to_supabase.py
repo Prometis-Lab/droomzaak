@@ -20,6 +20,8 @@ COLUMNS_DDL = """
     postal VARCHAR, city VARCHAR, street VARCHAR, house_nbr VARCHAR,
     lon DOUBLE, lat DOUBLE, nis9_code VARCHAR, capakey VARCHAR, geocoded BOOLEAN
 """
+
+
 def _write_fixture(path: Path) -> None:
     con = duckdb.connect()
     con.execute(f"""
@@ -48,7 +50,10 @@ def test_load_is_idempotent(tmp_path, monkeypatch):
     assert loader.load_canonical(con, "business_registry") == 2
     # A second run DELETE+INSERTs — must not duplicate.
     assert loader.load_canonical(con, "business_registry") == 2
-    assert con.sql("SELECT count(*) FROM pg.droomzaak.business_registry").fetchone()[0] == 2
+    assert (
+        con.sql("SELECT count(*) FROM pg.droomzaak.business_registry").fetchone()[0]
+        == 2
+    )
 
 
 def test_unknown_table_raises():
@@ -62,6 +67,22 @@ def test_missing_parquet_raises(tmp_path, monkeypatch):
         loader.load_canonical(duckdb.connect(), "business_registry")
 
 
+def test_resolve_dsn_skips_non_uri_placeholder(monkeypatch):
+    """A comment/placeholder in the preferred var must not shadow a valid fallback."""
+    monkeypatch.setattr(loader, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setenv("DROOMZAAK_PG_DSN", "# the failover DSN; unset for the demo")
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://u:p@host:5432/postgres")
+    assert loader.resolve_dsn() == "postgresql://u:p@host:5432/postgres"
+
+
+def test_resolve_dsn_raises_when_no_valid_uri(monkeypatch):
+    monkeypatch.setattr(loader, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setenv("DROOMZAAK_PG_DSN", "")
+    monkeypatch.setenv("SUPABASE_DB_URL", "not-a-uri")
+    with pytest.raises(RuntimeError, match="No usable Postgres DSN"):
+        loader.resolve_dsn()
+
+
 def test_column_drift_raises(tmp_path, monkeypatch):
     """A target table whose column count differs from the Parquet must fail loudly."""
     monkeypatch.setattr(loader, "CANONICAL", tmp_path)
@@ -70,7 +91,9 @@ def test_column_drift_raises(tmp_path, monkeypatch):
     con = duckdb.connect()
     con.execute("ATTACH ':memory:' AS pg")
     con.execute("CREATE SCHEMA pg.droomzaak")
-    con.execute("CREATE TABLE pg.droomzaak.business_registry (kbo_id VARCHAR, ent VARCHAR)")  # 2 cols, not 17
+    con.execute(
+        "CREATE TABLE pg.droomzaak.business_registry (kbo_id VARCHAR, ent VARCHAR)"
+    )  # 2 cols, not 17
 
     with pytest.raises(ValueError, match="drifted"):
         loader.load_canonical(con, "business_registry")
