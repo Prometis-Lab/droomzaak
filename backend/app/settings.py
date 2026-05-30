@@ -29,7 +29,9 @@ AGENT_LANGUAGE = os.environ.get("AGENT_LANGUAGE", "nl")  # nl primary, en fallba
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5")
+# GPT-5 reasoning effort: minimal | low | medium | high. Only sent to gpt-5* models.
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "minimal")
 AGENT_MAX_TOOL_ITERATIONS = int(os.environ.get("AGENT_MAX_TOOL_ITERATIONS", "8"))
 AGENT_SESSION_TURNS = int(os.environ.get("AGENT_SESSION_TURNS", "20"))
 

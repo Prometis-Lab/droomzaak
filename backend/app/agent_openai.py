@@ -30,8 +30,11 @@ class OpenAIAdapter:
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = await client.chat.completions.create(
-            model=self.model_id, messages=messages, tools=tools or None)
+        create_args = {"model": self.model_id, "messages": messages, "tools": tools or None}
+        # GPT-5 family accepts reasoning_effort (incl. "minimal"); older models reject it.
+        if self.model_id.startswith("gpt-5"):
+            create_args["reasoning_effort"] = settings.OPENAI_REASONING_EFFORT
+        resp = await client.chat.completions.create(**create_args)
         choice = resp.choices[0]
         msg = choice.message
         tool_calls = []
