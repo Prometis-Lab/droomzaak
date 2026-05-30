@@ -12,7 +12,7 @@
 1. **Validated + normalized the VO.** Rendered clips in ElevenLabs v3 (Flemish male, settings per VO script). Some lines were *lengthened* during generation because 2–3-word fragments read poorly in TTS — the as-generated wording is now the source of truth (see VO script table). Two-pass `ffmpeg loudnorm` → `normalized/` (originals untouched).
 2. **Added the product-demo tail.** Old single "Beat 8 / S8 (brand)" split into **S8 website reveal → S9 product demo (NEW) → S10 CTA + end card**.
 3. **Changed the CTA.** Old *"...bouw je droomzaak"* is gone. New closer re-uses the signature line: *"Bezoek onze website en laat ons je helpen je droomleven waar te maken. droomzaak.be, want ondernemen, da's een zaak van dromen."* The *zaak* pun now bookends Beat 6.
-4. **Deprecated** the superseded `droomzaak_dot_be` clip → `pitch/voice_clips/deprecated/` (replaced by `droomzaak_be_CTA`). Old `bezoek_..._bouw_je_droomzaak` clip removed (replaced by longer `bezoek_onze_website`).
+4. **Removed superseded clips.** `droomzaak_dot_be` (replaced by `droomzaak_be_CTA`) and `bezoek_..._bouw_je_droomzaak` (replaced by longer `bezoek_onze_website`) are deleted from the repo.
 5. **Updated the grounding storyline (the spine) to v3** — sanctioned by the team — so the invariant arc/resolution/CTA reflect the product beat.
 
 ## The final clip inventory (normalized/, maps to shots)
@@ -39,14 +39,14 @@
 - **Grounding storyline invariant #9 was changed** (CTA no longer "bouw je droomzaak"). Team sanctioned it this session; flag if anyone disagrees.
 - **Product-demo aspect:** desktop web app into a 5:7 portrait frame — capture portrait-friendly, or letterbox a desktop capture? (Affects how the demo is recorded.)
 - **`droomzaak.be`** — confirm that's the real live domain before the end card.
-- **Repo weight:** `voice_clips/` WAVs + `deprecated/` are tracked binaries. Decide whether to `.gitignore` `deprecated/` / large WAVs.
+- **Repo weight:** `voice_clips/` source MP3s + `normalized/` WAVs are tracked binaries. Decide whether to `.gitignore` the large WAVs.
 
 ## Entry points
 - Story spine: `pitch/droomzaak-grounding-storyline.md` (v3 — narration duet table + Beats 8/9/10)
 - Shots: `pitch/droomzaak-shotlist-worksheet.md` (S8/S9/S10, Non-Lore assets, variant table)
 - VO: `pitch/droomzaak-vo-script.md` (as-generated 10-clip table + measured timing map)
 - Checklist: `pitch/droomzaak-pitch-video-checklist.md` (spec sheet, Phase B/C, open items)
-- Audio: `pitch/voice_clips/normalized/` (edit-ready) · `pitch/voice_clips/deprecated/` (superseded)
+- Audio: `pitch/voice_clips/normalized/` (edit-ready WAV) · `pitch/voice_clips/` (source MP3)
 - Skill: `media-prompt-craft` (+ `media-prompt-smith` agent) for any prompt/VO work.
 
 ## Gotchas hit
