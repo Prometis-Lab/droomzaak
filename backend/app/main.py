@@ -14,10 +14,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from pydantic import BaseModel, field_validator
 
-from backend.app import droomzaak_chapters, package_view, settings
+from backend.app import agent_trace, droomzaak_chapters, package_view, settings
 from backend.app.storage import CatalogStore, get_store
 
 log = logging.getLogger("droomzaak")
@@ -81,6 +81,15 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     context: dict = {}
 
+    @field_validator("session_id")
+    @classmethod
+    def _safe_session_id(cls, v: str | None) -> str | None:
+        # session_id is used as a filesystem stem by the trace sink — keep it to
+        # the id alphabet (real ids are uuid4().hex). Reject path-traversal input.
+        if v is not None and not all(c.isalnum() or c in "-_" for c in v):
+            raise ValueError("session_id must be alphanumeric (with - or _)")
+        return v
+
 
 @app.post("/api/agent/chat")
 async def agent_chat(body: ChatRequest, store: CatalogStore = StoreDep) -> dict:
@@ -109,6 +118,20 @@ async def get_debug(debug_id: str, store: CatalogStore = StoreDep) -> dict:
     if run is None:
         raise HTTPException(404, "debug run not found")
     return run
+
+
+@app.get("/api/agent/trace/{session_id}")
+async def get_trace(session_id: str, format: str = "json", store: CatalogStore = StoreDep):
+    """Full-conversation trace for judging a run after the fact: every turn's tool
+    calls (args, result, latency, ok/error) + a per-turn summary. `format=text`
+    returns a human-readable timeline; default is structured JSON with a digest."""
+    turns = store.load_debugs_for_session(session_id)
+    if not turns:
+        raise HTTPException(404, "geen trace voor deze sessie")
+    if format == "text":
+        return PlainTextResponse(agent_trace.render_trace_text(session_id, turns))
+    return {"session_id": session_id, "summary": agent_trace.summarize_session(turns),
+            "turns": turns}
 
 
 @app.get("/api/droomzaak/chapter/{session_id}")

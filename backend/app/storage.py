@@ -143,6 +143,20 @@ class CatalogStore:
             return None
         return {"session_id": row[0], "stages": json.loads(row[1]) if row[1] else []}
 
+    def load_debugs_for_session(self, session_id: str) -> list[dict]:
+        """Every turn's debug run for a session, oldest first — the trace source."""
+        with self._lock:
+            rows = self.connection.execute(
+                "SELECT debug_id, stages_json, created_at FROM agent_debug_runs "
+                "WHERE session_id = ? ORDER BY created_at",
+                [session_id],
+            ).fetchall()
+        return [
+            {"debug_id": r[0], "stages": json.loads(r[1]) if r[1] else [],
+             "created_at": str(r[2]) if r[2] is not None else None}
+            for r in rows
+        ]
+
 
 _store: CatalogStore | None = None
 

@@ -56,6 +56,14 @@ DROOMZAAK_DEV_FABRICATE = os.environ.get("DROOMZAAK_DEV_FABRICATE", "").strip().
     "1", "true", "yes", "on",
 )
 
+# ── Conversation tracing (debug-only; data/ is gitignored) ─────────────
+# Per-turn JSONL trace under DROOMZAAK_TRACE_DIR so a whole conversation can be
+# replayed/judged offline. Default ON; never on the agent's read path.
+DROOMZAAK_TRACE_TO_FILE = os.environ.get("DROOMZAAK_TRACE_TO_FILE", "1").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+DROOMZAAK_TRACE_DIR = os.environ.get("DROOMZAAK_TRACE_DIR", "data/traces")
+
 # ── Live behaviour tools (not routed through the DataGateway) ───────────
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY", "")

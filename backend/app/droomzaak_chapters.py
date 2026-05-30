@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import uuid
 
-from backend.app import agent_tools, droomzaak_tools, settings
+from backend.app import agent_tools, agent_trace, droomzaak_tools, settings
 from backend.app.agent_loop import AgentRun, run_loop
 from backend.app.data_gateway import gateway
 from backend.app.droomzaak_prompt import CHAPTER_TOOL_ALLOWLIST, build_system_prompt
@@ -91,7 +91,8 @@ async def run_droomzaak_turn(
     history, provider_label = store.load_messages(session_id)
     state = store.load_chapter_state(session_id) or default_chapter_state()
     chapter = state["current_chapter"]
-    debug_stages.append({"stage": "chapter_state_loaded", "detail": {"current_chapter": chapter}})
+    debug_stages.append({"stage": "chapter_state_loaded",
+                         "detail": {"current_chapter": chapter, "user_message": user_message}})
 
     adapter = pick_adapter()
     if adapter is None:
@@ -104,7 +105,8 @@ async def run_droomzaak_turn(
     tools = _chapter_tool_specs(chapter)
     runtime_block = build_runtime_block(frontend_context, state)
 
-    run = AgentRun(store=store, frontend_context=frontend_context, current_chapter_state=state)
+    run = AgentRun(store=store, session_id=session_id, frontend_context=frontend_context,
+                   current_chapter_state=state)
     result = await run_loop(
         adapter=adapter, run=run, system_text=system_text, history=history,
         runtime_block=runtime_block, user_message=user_message, tool_specs_neutral=tools,
@@ -131,9 +133,24 @@ async def run_droomzaak_turn(
     for entry in gateway.drain_audit():
         debug_stages.append({"stage": "datagateway_call", "detail": entry})
 
+    # A self-contained per-turn summary so a saved trace tells the whole story:
+    # what was asked, how the reply was produced, and what (if anything) failed.
+    debug_stages.append({"stage": "turn_summary", "detail": {
+        "user_message": user_message,
+        "reply": result["reply"],
+        "reply_source": result.get("reply_source"),
+        "plan": result.get("plan"),
+        "problem_report": result.get("problem_report"),
+        "iterations": result.get("iterations"),
+        "usage": result.get("usage"),
+        "actions": [a.get("type") for a in result["actions"]],
+        "chapter_transitioned": transitioned,
+    }})
+
     store.save_messages(session_id, adapter.name, result["messages"])
     debug_id = uuid.uuid4().hex
     store.save_debug(debug_id, session_id, debug_stages)
+    agent_trace.write_trace_file(session_id, {"debug_id": debug_id, "stages": debug_stages})
 
     return {
         "reply": result["reply"], "actions": result["actions"], "model": result.get("model"),

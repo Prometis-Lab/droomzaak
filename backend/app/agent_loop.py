@@ -14,8 +14,11 @@ the loop. The five hard-earned behaviours are preserved:
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol, runtime_checkable
+
+from backend.app.agent_trace import summarize
 
 _COMMIT_NUDGE_TEXT = (
     "You must call apply_map_actions exactly once before ending the turn. "
@@ -46,6 +49,7 @@ class AgentRun:
     """Per-turn mutable state shared with tool handlers."""
 
     store: Any = None
+    session_id: str | None = None
     frontend_context: dict = field(default_factory=dict)
     current_chapter_state: dict | None = None
     pending_reply: str | None = None
@@ -176,7 +180,28 @@ async def run_loop(
 
         tool_results: list[tuple[ToolCall, dict]] = []
         for tc in response.tool_calls:
-            result = await execute_tool(tc.name, tc.arguments, run)
+            started = time.perf_counter()
+            try:
+                result = await execute_tool(tc.name, tc.arguments, run)
+            except Exception as exc:
+                _emit(debug_stages, "tool_call", {
+                    "tool": tc.name, "iteration": iterations,
+                    "arguments": summarize(tc.arguments), "ok": False,
+                    "raised": str(exc),
+                    "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                }, on_stage)
+                raise  # behaviour unchanged: a raising tool still propagates
+            latency_ms = round((time.perf_counter() - started) * 1000, 1)
+            is_error = isinstance(result, dict) and "error" in result
+            _emit(debug_stages, "tool_call", {
+                "tool": tc.name, "iteration": iterations,
+                "arguments": summarize(tc.arguments),
+                "ok": not is_error,
+                "error": result.get("error") if is_error else None,
+                "result_keys": list(result.keys()) if isinstance(result, dict) else None,
+                "result": summarize(result),
+                "latency_ms": latency_ms,
+            }, on_stage)
             tool_results.append((tc, result))
         adapter.append_tool_results(messages, tool_results)
 
