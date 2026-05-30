@@ -44,6 +44,8 @@ TABLES = {
     "demographics_sector": "demographics_sector_gent",
     "housing_price_sector": "housing_price_sector_gent",
     "transit_access_sector": "transit_access_sector_gent",
+    "footfall_sector": "footfall_sector_gent",
+    "demand_proxies_sector": "demand_proxies_sector_gent",
     "disruption_events": "disruption_events_gent",
     "permits_events": "permits_events_gent",
     "gent_points": "gent_points_gent",

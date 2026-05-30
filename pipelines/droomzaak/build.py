@@ -27,6 +27,8 @@ ORDER = [
     "statbel_peers",
     "immo_sector",
     "transit_access",
+    "footfall",  # depends on transit_access (reads transit_access_sector_gent)
+    "demand_proxies",
     "disruption",
     "permits",
     "gent_points",
