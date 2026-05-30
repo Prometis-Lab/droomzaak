@@ -25,11 +25,12 @@ from backend.app.droomzaak_validation import deep_merge
 # racing through the whole journey. Chapters still advance sequentially (validator-enforced).
 MAX_SAME_TURN_ADVANCES = 1
 
-# Same-turn continuation fires only on the heavier analysis transitions (Niche→Waar onward),
-# where the agent otherwise over-promises results. Droom→Niche keeps its gentle two-beat:
-# capture the dream warmly first, then explore the niche on the next turn. The chapter still
-# advances on a 1→2 commit; it just doesn't continue in-turn.
-SAME_TURN_CONTINUE_FROM = frozenset({"2_niche", "3_waar", "4_vergunningen"})
+# Same-turn continuation fires on every forward transition: when the founder commits to the
+# next chapter, its result is delivered in the same turn rather than promised and deferred.
+# Droom→Niche is included because Chapter 1 now OFFERS the choice to move on (it no longer
+# auto-advances), so an advance here is an explicit opt-in — running the niche analysis
+# immediately delivers on that choice instead of leaving a bridge line with no result.
+SAME_TURN_CONTINUE_FROM = frozenset({"1_droom", "2_niche", "3_waar", "4_vergunningen"})
 
 _CHAPTER_KEYS = [
     "current_chapter", "dream_profile", "niche_signals", "candidate_locations",
@@ -127,8 +128,8 @@ def _make_on_commit(run, transitions, action_log, debug_stages, frontend_context
                 advancing_to, advancing_from = nxt, prev
                 transitions.append({"from": prev, "to": nxt})
 
-        # State always advances; only the heavier transitions continue in-turn (Droom→Niche
-        # keeps its gentle two-beat), and never more than MAX_SAME_TURN_ADVANCES per turn.
+        # State always advances; a forward transition continues in-turn to deliver the new
+        # chapter's result, never more than MAX_SAME_TURN_ADVANCES per turn.
         if (advancing_to is None
                 or advancing_from not in SAME_TURN_CONTINUE_FROM
                 or advances["n"] >= MAX_SAME_TURN_ADVANCES):

@@ -282,21 +282,28 @@ async def test_same_turn_advance_delivers(monkeypatch):
     store.close()
 
 
-async def test_droom_to_niche_no_same_turn_continuation(monkeypatch):
-    """Droom→Niche keeps its gentle two-beat: the chapter advances but does NOT continue."""
+async def test_droom_to_niche_same_turn_continuation(monkeypatch):
+    """Droom→Niche now continues in-turn: confirming the dream advances AND delivers the
+    niche analysis, so the founder's opt-in isn't left as a bridge line with no result."""
     store = CatalogStore(":memory:")
     _seed(store, "s6", "1_droom")
-    scripted = [_commit("Wat een warm idee.", [{"type": "set_chapter_state", "patch": {
-        "dream_profile": {"sector": "horeca"}, "current_chapter": "2_niche"}}])]
+    scripted = [
+        _commit("We gaan kijken wie dit al durfde in Gent.",
+                [{"type": "set_chapter_state", "patch": {
+                    "dream_profile": {"sector": "horeca"}, "current_chapter": "2_niche"}}]),
+        _commit("Er zijn al ±120 vergelijkbare zaken, vooral rond het centrum.",
+                [{"type": "set_chapter_state", "patch": {"niche_signals": {"active_count": 120}}}]),
+    ]
     stages: list = []
     monkeypatch.setattr(droomzaak_chapters, "pick_adapter", lambda: _FakeAdapter(scripted))
 
     result = await droomzaak_chapters.run_droomzaak_turn(
-        store=store, user_message="een bistro", session_id="s6", debug_stages=stages)
+        store=store, user_message="ja, laten we kijken", session_id="s6", debug_stages=stages)
 
     assert result["chapter_state"]["current_chapter"] == "2_niche"
     assert result["chapter_transitioned"] is True
-    assert not any(s["stage"] == "same_turn_continuation" for s in stages)
+    assert result["reply"].startswith("Er zijn al")  # segment-2 result, not the bridge line
+    assert any(s["stage"] == "same_turn_continuation" for s in stages)
     store.close()
 
 
