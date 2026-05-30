@@ -462,3 +462,98 @@ body {
   background: var(--terracotta-deep);
   color: #fff;
 }
+
+/* ── Droom landing (fresh-session overlay + FLIP morph) ───────── */
+.dream-landing {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 120% at 50% 0%, var(--ochre) 0%, var(--terracotta) 55%, var(--terracotta-deep) 100%);
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.dream-landing--leaving { opacity: 0; pointer-events: none; }
+
+.dream-landing-card {
+  width: min(560px, 100%);
+  background: var(--paper);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px var(--shadow), 0 4px 12px var(--shadow);
+  padding: 36px 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.dream-landing-card img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+.dream-landing-wordmark {
+  font-family: var(--font);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--terracotta-deep);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+.dream-landing-tagline {
+  font-family: var(--font);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+}
+.dream-landing-card textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.4;
+  background: #fff;
+  color: var(--ink);
+}
+.dream-landing-card textarea:focus {
+  outline: none;
+  border-color: var(--terracotta);
+}
+.dream-landing-btn {
+  align-self: stretch;
+  border: none;
+  background: var(--terracotta);
+  color: #fff;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dream-landing-btn:hover:not(:disabled) { background: var(--terracotta-deep); }
+.dream-landing-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* The card while flying to the chat slot — rect is set inline, timing here. */
+.dream-landing-card--flying {
+  transition:
+    transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+  box-shadow: 0 24px 60px var(--shadow);
+  z-index: 51;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dream-landing { transition: opacity 0.3s linear; }
+  .dream-landing-card--flying { transition: opacity 0.3s linear; }
+}

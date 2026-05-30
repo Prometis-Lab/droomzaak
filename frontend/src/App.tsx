@@ -3,6 +3,7 @@ import { ChapterRail, type ChapterId } from "./components/ChapterRail";
 import { MapCanvas, type MapMarker } from "./components/MapCanvas";
 import { Droomkaart } from "./components/Droomkaart";
 import { AgentPanel, type ChatMessage } from "./components/AgentPanel";
+import { DreamLanding } from "./components/DreamLanding";
 import { getChapter, getSessionId, newSession, putChapter, sendChat } from "./droomzaak/api";
 import type { ChapterState, HeatmapSpec, TransientDataset } from "./droomzaak/types";
 
@@ -60,6 +61,8 @@ export default function App() {
   const [layerStyles, setLayerStyles] = useState<Record<string, string>>({});
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [landed, setLanded] = useState(false);
+  const chatInputRef = useRef<HTMLDivElement>(null);
 
   // ── Layout state (persisted) ──────────────────────────────────
   const [panelWidth, setPanelWidth] = useState(() => LS.get("panelWidth", PANEL_DEFAULT));
@@ -87,7 +90,10 @@ export default function App() {
   // ── Session / chapter load ────────────────────────────────────
   useEffect(() => {
     getChapter(sessionId)
-      .then((d) => setChapterState(d.chapter_state))
+      .then((d) => {
+        setChapterState(d.chapter_state);
+        if (d.chapter_state?.dream_profile) setLanded(true);
+      })
       .catch(() => void 0);
   }, [sessionId]);
 
@@ -106,6 +112,7 @@ export default function App() {
     setHiddenLayers([]);
     setLayerStyles({});
     setSelectedDatasetId(null);
+    setLanded(false);
   }
 
   async function handleSend(text: string) {
@@ -386,10 +393,19 @@ export default function App() {
               </button>
             </div>
             {!chatCollapsed && (
-              <AgentPanel current={current} messages={messages} busy={busy} onSend={handleSend} />
+              <AgentPanel current={current} messages={messages} busy={busy} onSend={handleSend} chatInputRef={chatInputRef} />
             )}
           </div>
         </div>
+      )}
+
+      {/* Overlay stays mounted through its exit animation; onExited flips `landed`. */}
+      {!landed && (
+        <DreamLanding
+          targetRef={chatInputRef}
+          onDream={(text) => void handleSend(text)}
+          onExited={() => setLanded(true)}
+        />
       )}
     </div>
   );
