@@ -17,6 +17,13 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Local secret stores — gitignored + untracked by design (the Friday demo-secret location). Never committed; the `gitleaks git` history scan returns 0. This allowlists only the WORKING-TREE (`dir`) scan, which deliberately inspects ignored files; the .gitignore is the commit guard. NB: these hold REAL live keys — rotate post-event."
+paths = [
+  '''(^|/)\.env\.demo$''',
+  '''(^|/)\.claude/settings\.local\.json$''',
+]
+
+[[allowlists]]
 description = "Out-of-scope: third-party / generated / cached code (not ours). Mirrors .semgrepignore — these carry test fixtures full of fake secrets and would drown real findings."
 paths = [
   '''^\.cache/''',                 # cloned SAST rulesets — test fixtures with planted secrets

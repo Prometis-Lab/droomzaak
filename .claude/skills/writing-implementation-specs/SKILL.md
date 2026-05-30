@@ -10,13 +10,13 @@ A good spec is clear enough for "an enthusiastic junior engineer with no project
 ## Before writing — ground it (precedence)
 1. Read the relevant PRD section AND `droomzaak-data-shortlist.md` (the latter wins on data/tools/sources). Carry the **Known corrections** (no `places_popular_times`; `web_search` exists; Belfirst peer source; data-shortlist table names; `prometis_toolkit`; subsidy `status`).
 2. If a reference implementation exists under `reference/`, ask `reference-scout` for inspiration on the contract (don't guess at `agent_loop.py`/`App.tsx` internals — design them from the PRD).
-3. Identify the invariants the change must honor (`rules/data-tiers.md`: Soda Straw boundary, parameterized SQL, proxy labels, provider-neutral).
+3. Identify the invariants the change must honor (`rules/data-tiers.md`: DataGateway boundary, parameterized SQL, proxy labels, provider-neutral).
 
 ## Spec structure (write to `docs/specs/YYYY-MM-DD-<slug>.md`)
 - **Context** — what + why, the PRD/data-shortlist refs, the hour-budget slot (§5.2).
-- **Contract** — exact inputs/outputs; for a tool: the neutral spec (name, description, JSON-Schema params, return shape), how it routes (Soda Straw vs native), validation/action-type changes.
+- **Contract** — exact inputs/outputs; for a tool: the neutral spec (name, description, JSON-Schema params, return shape), how it routes (DataGateway vs native), validation/action-type changes.
 - **Files** — which files to create/modify (target structure), naming the reference analog to mirror.
-- **Edge cases** — empty/zero-row data, non-horeca sector, jury-picked non-Vrijdagmarkt address (must not crash), straw timeout/failover, missing secret.
+- **Edge cases** — empty/zero-row data, non-horeca sector, jury-picked non-Vrijdagmarkt address (must not crash), DataGateway timeout, missing secret.
 - **Tests** — the fake-client test(s); real APIs monkeypatched.
 - **Acceptance / "done"** — verifiable: which command proves it (a passing test, a `npm run build`, a chapter completing), mapped to a PRD §6.3 criterion where relevant.
 - **Risks & open questions** — anything needing a decision before coding.

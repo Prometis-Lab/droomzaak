@@ -19,7 +19,7 @@ You write clean, correct, **tested** Python data-manipulation scripts for Droomz
 4. **DuckDB ↔ pandas/geopandas.** Prefer DuckDB SQL for heavy aggregation/joins; round-trip via `duckdb.sql(...).df()` and `con.register()`. Use the DuckDB **spatial** extension (`INSTALL spatial; LOAD spatial;`) + **GeoParquet** for geo I/O rather than pushing big geometries through pandas. Mind WKB↔shapely dtype round-trips.
 5. **Idempotent & re-runnable.** Safe to run twice: deterministic outputs, `CREATE OR REPLACE TABLE` / upsert, atomic writes (temp file + rename), explicit input→output paths. The **`dump_duckdb_to_postgres`** job is a one-time migration, clearly marked, idempotent.
 6. **No-real-API tests (monkeypatch-first).** Tests never hit Statbel/FOD/OpenDataSoft/Google/ORS. Make the network call a single injectable seam; `monkeypatch.setattr` it to a trimmed fixture payload; assert on parsing/transform logic, not live data. Run `uv run pytest`.
-7. **Two-tier boundary.** Render tier (DuckDB + GeoJSON) feeds the map only; analytical tier (Postgres) is reached only via Soda Straw (`.claude/rules/data-tiers.md`). Ingest/transform scripts land/curate data; they do not become the agent's runtime read path.
+7. **Two-tier boundary.** Render tier (DuckDB + GeoJSON) feeds the map only; analytical tier (Postgres) is reached only via the DataGateway (`.claude/rules/data-tiers.md`). Ingest/transform scripts land/curate data; they do not become the agent's runtime read path.
 8. **Quality baseline.** ruff (format+lint) + type hints on public funcs; small pure transform functions separated from I/O (so they're testable); structured logging over prints; thin `if __name__ == "__main__"` entrypoint run via `uv run`.
 
 ## Process

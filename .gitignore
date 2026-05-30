@@ -266,3 +266,17 @@ pitch/voice_clips/*.wav
 pitch/voice_clips/**/*.wav
 pitch/keyframes/*.png
 pitch/keyframes/**/*.png
+
+# ── Droomzaak app build artifacts ──
+/data/
+*.duckdb
+*.duckdb.wal
+frontend/dist/
+.python-version
+
+# TS build info
+*.tsbuildinfo
+
+# Vite config build artifacts (emitted by tsc -b)
+frontend/vite.config.js
+frontend/vite.config.d.ts
