@@ -9,7 +9,6 @@ Data-tier boundary (data-tiers.md):
     → read curated YAML from config/ at module level (lru_cache).
     → NO gateway call; config is always present on disk.
     → No fabricate fallback needed (YAML is always loadable).
-  BEHAVIOUR tools (places_search) → native HTTP, no gateway.
   LLM tools (extract_dream_profile, generate_dream_narrative) → complete_json seam.
   PURE-PYTHON tools (legal_form_advisor, compose_package) → no I/O.
 
@@ -138,13 +137,6 @@ def tool_specs() -> list[dict]:
              "nace_code": {"type": "string"}, "refnis": {"type": "string", "default": "44021"},
              "years_back": {"type": "integer", "minimum": 1, "maximum": 10, "default": 3}},
              "required": ["nace_code"]}},
-        {"name": "places_search",
-         "description": "Live competitor/niche venue search via Google Places. Returns a transient "
-         "places- layer. Native behaviour tool.",
-         "input_schema": {"type": "object", "properties": {
-             "query": {"type": "string"},
-             "bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}},
-             "required": ["query"]}},
         {"name": "score_locations",
          "description": (
              "Multi-axis scoring of Gent statistical sectors against a dream profile. "
@@ -811,50 +803,6 @@ async def handle_compose_package(args: dict, run: AgentRun) -> dict:
     return {"package_url": f"/pakket/{session_id}", "ready": True}
 
 
-# ── places_search ─────────────────────────────────────────────────────────────
-
-async def handle_places_search(args: dict, run: AgentRun) -> dict:
-    query = args.get("query", "")
-    if not settings.GOOGLE_MAPS_API_KEY:
-        return {"error": "places_search niet beschikbaar (geen GOOGLE_MAPS_API_KEY)",
-                "hint": "Gebruik query_osm voor niche-/concurrentiepunten."}
-    import httpx
-
-    body = {"textQuery": f"{query} in Gent, België", "maxResultCount": 20}
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                "https://places.googleapis.com/v1/places:searchText", json=body,
-                headers={"X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY,
-                         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,"
-                         "places.location,places.rating,places.userRatingCount,places.types"})
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception as exc:
-        return {"error": f"places_search failed: {exc}", "hint": "Gebruik query_osm als fallback."}
-    places, features = [], []
-    for p in data.get("places", []):
-        loc = p.get("location", {})
-        coords = [loc.get("longitude"), loc.get("latitude")]
-        places.append({"place_id": p.get("id"), "name": (p.get("displayName") or {}).get("text"),
-                       "address": p.get("formattedAddress"), "rating": p.get("rating"),
-                       "user_ratings_total": p.get("userRatingCount"), "coordinates": coords,
-                       "types": p.get("types", [])})
-        if coords[0] is not None:
-            # Carry the user-relevant fields onto the feature so a map click can
-            # surface them — the `places` list above keeps the full tool result.
-            features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": coords},
-                             "properties": {"name": (p.get("displayName") or {}).get("text"),
-                                            "address": p.get("formattedAddress"),
-                                            "rating": p.get("rating"),
-                                            "user_ratings_total": p.get("userRatingCount"),
-                                            "types": p.get("types", [])}})
-    dataset_id = f"places-{_hash(query)}"
-    run.datasets[dataset_id] = {"dataset_id": dataset_id, "feature_count": len(features),
-                                "geojson": {"type": "FeatureCollection", "features": features}}
-    return {"dataset_id": dataset_id, "places": places}
-
-
 # ── describe_warehouse + query_warehouse (generic exploration) ────────────────
 #
 # A discover→analyse pair re-expressed through the DataGateway (map-pilot does the
@@ -995,7 +943,6 @@ async def handle_query_warehouse(args: dict, run: AgentRun) -> dict:
 HANDLERS = {
     "extract_dream_profile":    handle_extract_dream_profile,
     "peer_benchmarks_statbel":  handle_peer_benchmarks_statbel,
-    "places_search":            handle_places_search,
     "score_locations":          handle_score_locations,
     "rent_benchmark":           handle_rent_benchmark,
     "permit_checklist_for":     handle_permit_checklist_for,

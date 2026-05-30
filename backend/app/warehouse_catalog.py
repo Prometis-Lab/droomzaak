@@ -158,7 +158,7 @@ CATALOG: dict[str, dict] = {
         "one_line": "Points of interest — count POIs per sector by category.",
         "licence": "open",
         "aggregates_only": False,
-        "caveat_nl": "Stad Gent open data; tel met count(*). Dekt ~28% van de sectoren — kruis met OSM/Places.",
+        "caveat_nl": "Stad Gent open data; tel met count(*). Dekt ~28% van de sectoren — kruis met OSM.",
         "columns": {
             "nis9_code": _col("statistical sector", groupable=True),
             "category": _col("POI category", groupable=True),

@@ -70,12 +70,11 @@ curl -s localhost:8000/api/agent/chat -H 'content-type: application/json' -d '{
 
 ---
 
-## 2. Chapter 2 — Niche → `peer_benchmarks_statbel` · `query_osm` · `places_search` · `web_search`
+## 2. Chapter 2 — Niche → `peer_benchmarks_statbel` · `query_osm` · `web_search`
 
 - **Chapter:** `2_niche` (reuse `smoke1` after step 1, or fast-forward — see §6)
-- **Expected tool(s):** `peer_benchmarks_statbel` (DB ⚠️), `query_osm` (native),
-  `places_search` (native, Google key). `web_search` is a fallback — exercise it
-  with the off-script prompt below.
+- **Expected tool(s):** `peer_benchmarks_statbel` (DB ⚠️), `query_osm` (native).
+  `web_search` is a fallback — exercise it with the off-script prompt below.
 
 ```bash
 curl -s localhost:8000/api/agent/chat -H 'content-type: application/json' -d '{
@@ -86,8 +85,6 @@ curl -s localhost:8000/api/agent/chat -H 'content-type: application/json' -d '{
 
 **Verify:**
 - Debug shows `query_osm` returned a `dataset_id` (`osm-…`) with `feature_count`.
-- `places_search` returned records (or `{error,hint}` if `GOOGLE_MAPS_API_KEY`
-  is missing).
 - `peer_benchmarks_statbel` returned counts/summary **or** the `{error,hint}`
   envelope (degraded mode).
 - Reply shows 2–4 key figures and a map layer is shown.
@@ -215,7 +212,6 @@ prompt from the section above to exercise that chapter's tools directly.
 | `report_problem` | §2/§4 (on gaps) | in-process | ✅ |
 | `peer_benchmarks_statbel` | §2 | DataGateway | ⚠️ `{error,hint}` |
 | `query_osm` | §2 | Overpass | ✅ |
-| `places_search` | §2 | Google Places | ✅ (needs key) |
 | `web_search` | §2/§4 | Tavily | ✅ (needs key) |
 | `score_locations` | §3 | DataGateway | ⚠️ `{error,hint}` |
 | `rent_benchmark` | §3 | DataGateway | ⚠️ `{error,hint}` |

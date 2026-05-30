@@ -132,11 +132,11 @@ SPEC_CLIP_POINTS_TO_AREA = {
     "name": "clip_points_to_area",
     "description": (
         "Clip a point layer to only those points that fall within a polygon area. "
-        "Typical use in Chapter 3 (Waar): clip query_osm or places_search points to an "
+        "Typical use in Chapter 3 (Waar): clip query_osm points to an "
         "isochrone polygon so only venues within walking/cycling reach are shown. "
         "Returns a new transient layer; use show_layer to display it. "
-        "source_dataset_id must already exist in this turn's datasets (call query_osm or "
-        "places_search first). within.layer is the most common variant — pass the dataset_id "
+        "source_dataset_id must already exist in this turn's datasets (call query_osm "
+        "first). within.layer is the most common variant — pass the dataset_id "
         "of an isochrone layer; within.polygon accepts a raw GeoJSON Polygon/MultiPolygon."
     ),
     "input_schema": {
@@ -144,7 +144,7 @@ SPEC_CLIP_POINTS_TO_AREA = {
         "properties": {
             "source_dataset_id": {
                 "type": "string",
-                "description": "dataset_id of the point layer to clip (e.g. an osm- or places- id).",
+                "description": "dataset_id of the point layer to clip (e.g. an osm- id).",
             },
             "within": {
                 "type": "object",
@@ -362,19 +362,19 @@ async def handle_clip_points_to_area(args: dict, run: AgentRun) -> dict:
     if not isinstance(source_id, str) or not source_id:
         return {
             "error": "source_dataset_id is vereist",
-            "hint": "Geef de dataset_id van een punt-laag op (bv. na query_osm of places_search).",
+            "hint": "Geef de dataset_id van een punt-laag op (bv. na query_osm).",
         }
     source_ds = run.datasets.get(source_id)
     if source_ds is None:
         return {
             "error": f"source_dataset_id '{source_id}' niet gevonden in de huidige datasets",
-            "hint": "Roep eerst query_osm of places_search aan om een punt-laag te maken.",
+            "hint": "Roep eerst query_osm aan om een punt-laag te maken.",
         }
     features = (source_ds.get("geojson") or {}).get("features")
     if not isinstance(features, list):
         return {
             "error": f"dataset '{source_id}' bevat geen geldige GeoJSON features-lijst",
-            "hint": "Roep eerst query_osm of places_search aan om een punt-laag te maken.",
+            "hint": "Roep eerst query_osm aan om een punt-laag te maken.",
         }
 
     within = args.get("within")

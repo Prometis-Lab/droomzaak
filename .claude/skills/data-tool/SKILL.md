@@ -10,7 +10,7 @@ The posture: **every analytical datum the agent surfaces flows through one audit
 ## The rule
 - **Warehouse/analytical tools** (`peer_benchmarks_statbel`, `score_locations`, `rent_benchmark`, demographics lookups, …) are **thin wrappers around a `DataGateway.query(...)` call**. No direct, scattered Postgres/DuckDB reads in tool bodies — they all funnel through the one gateway.
 - **Curated-config tools** (`permit_checklist_for`, `subsidies_for`) are the exception: they read frozen git-versioned YAML under `config/` directly (no gateway, no Postgres). Deterministic file load → filter by NACE/attributes/profile → documented shape. Not this skill's pattern.
-- **Behaviour tools stay native** (NOT through the gateway): `apply_map_actions`, `query_osm`, `geocode`, `isochrone`, `route`, `places_search`, Street View, `web_search`.
+- **Behaviour tools stay native** (NOT through the gateway): `apply_map_actions`, `query_osm`, `geocode`, `isochrone`, `route`, Street View, `web_search`.
 - **Data tools never produce map state** — they return data; the model commits via `apply_map_actions`.
 
 ## Wiring the gateway (one-time, backend startup)

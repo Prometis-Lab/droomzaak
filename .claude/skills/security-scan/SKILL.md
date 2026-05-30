@@ -21,7 +21,7 @@ On the changed diff, confirm:
 - **Secrets** — no keys/tokens in code or committed files; `.env*` not committed (only `.env.demo.example`); no secret in a URL/query/log.
 - **Injection** — SQL is **parameterized** (no string-formatted model/user input); no command injection; no `eval`/`exec` on model output; YAML via `safe_load`; no unsafe deserialization.
 - **DataGateway boundary** — analytical reads go through the DataGateway (parameterized SQL), not direct Postgres/DuckDB; the connection is read-only (`rules/data-tiers.md`).
-- **SSRF / fetch** — OSM/Places/ORS/Street View/Tavily URLs built from validated params, not raw model output; timeouts + caps.
+- **SSRF / fetch** — OSM/ORS/Street View/Tavily URLs built from validated params, not raw model output; timeouts + caps.
 - **Web** — FastAPI CORS not `*` in prod; route input validation; the package renderer escapes user/LLM text; no PII in the shareable `/pakket/<id>` URL.
 - **AuthZ / data exposure** — Belfirst per-company rows never on the founder path (aggregates only); no facial-image/PII scraping.
 - **Supply chain** — deps pinned (`uv.lock`, `package-lock.json`); `Safe Chain` recommended at setup.

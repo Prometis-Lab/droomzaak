@@ -4,7 +4,7 @@ TEMPORARY. When `settings.DROOMZAAK_DEV_FABRICATE` is on and the DataGateway is
 unavailable, the three Postgres-backed tools (peer_benchmarks_statbel, score_locations,
 rent_benchmark) return plausible, **clearly-labelled** demo data instead of the honest
 {error, hint} envelope — so the chapter flow can be exercised end-to-end before
-Supabase is wired. Native tools (OSM, geocode, Places, web_search) and the LLM tools
+Supabase is wired. Native tools (OSM, geocode, web_search) and the LLM tools
 are unaffected: they run for real.
 
 permit_checklist_for and subsidies_for are config-file tools (YAML-backed) — they always
