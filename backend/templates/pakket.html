@@ -39,6 +39,7 @@
       font: inherit; font-size: 14px; cursor: pointer;
       border: 1px solid var(--terra); border-radius: 999px;
       padding: 8px 18px; background: var(--terra); color: #fff;
+      text-decoration: none; display: inline-block; line-height: 1.2;
       transition: opacity 0.15s ease;
     }
     .dz-btn:hover { opacity: 0.88; }
@@ -95,7 +96,8 @@
 <body>
 
 <div class="dz-actions">
-  <button type="button" class="dz-btn" onclick="window.print()">Download als PDF</button>
+  <a class="dz-btn" href="/pakket/{{ session_id }}/pdf">Download als PDF</a>
+  <button type="button" class="dz-btn dz-btn--ghost" onclick="window.print()">Afdrukken</button>
 </div>
 
 <div class="sheet">

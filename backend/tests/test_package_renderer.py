@@ -169,6 +169,45 @@ def test_autoescape_blocks_injection(_isolated_store):
     assert "&lt;script&gt;" in html
 
 
+def test_pdf_download_returns_pdf(_isolated_store, monkeypatch):
+    """The /pdf route hands back an attachment with the bytes from html_to_pdf
+    (monkeypatched — tests never launch a real browser)."""
+    from backend.app import pdf_render
+
+    captured = {}
+
+    async def fake_html_to_pdf(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-1.4 fake bytes"
+
+    monkeypatch.setattr(pdf_render, "html_to_pdf", fake_html_to_pdf)
+    sid = "sess-pdf"
+    _isolated_store.save_package(sid, _full_package(sid))
+    res = _client().get(f"/pakket/{sid}/pdf")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert "attachment" in res.headers["content-disposition"]
+    assert res.content == b"%PDF-1.4 fake bytes"
+    assert "Terrasvergunning" in captured["html"]   # the real rendered pakket HTML was passed
+
+
+def test_pdf_download_404_for_empty_session(_isolated_store):
+    assert _client().get("/pakket/does-not-exist/pdf").status_code == 404
+
+
+def test_pdf_download_503_when_engine_unavailable(_isolated_store, monkeypatch):
+    """If the PDF engine/Chromium is missing, degrade to 503 (browser-print stays usable)."""
+    from backend.app import pdf_render
+
+    async def boom(html: str) -> bytes:
+        raise RuntimeError("chromium not installed")
+
+    monkeypatch.setattr(pdf_render, "html_to_pdf", boom)
+    sid = "sess-pdf-fail"
+    _isolated_store.save_package(sid, _full_package(sid))
+    assert _client().get(f"/pakket/{sid}/pdf").status_code == 503
+
+
 def test_compose_from_state_endpoint(_isolated_store):
     sid = "sess-finalise"
     state = default_chapter_state()

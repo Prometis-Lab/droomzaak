@@ -163,6 +163,8 @@ body {
 .dk-card h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--olive); }
 .dk-empty { color: var(--ink-soft); font-style: italic; font-size: 13px; }
 .dk-pakket-btn {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   margin-top: 4px;
   padding: 11px 14px;
@@ -173,6 +175,8 @@ body {
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: 14px;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
 }
 .dk-pakket-btn:hover { opacity: 0.92; }
