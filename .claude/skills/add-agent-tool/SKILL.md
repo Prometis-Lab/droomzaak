@@ -19,7 +19,7 @@ Read the tool's row in **`droomzaak-data-shortlist.md` §3** (authoritative on b
 
 ## 2. Handler — register in `_HANDLERS`
 1. **Validate input first.** Bad/missing field → `return {"error","hint"}`, never raise. The hint is fed back so the model self-corrects.
-2. **Fetch.** Analytical data → Soda Straw (`soda-straw-data-tool`), never direct Postgres/DuckDB. Behaviour (geocode, OSM, routing, Places, web_search) → native client.
+2. **Fetch.** Analytical data → `DataGateway.query(...)` (`data-tool`), never direct Postgres/DuckDB. Behaviour (geocode, OSM, routing, Places, web_search) → native client.
 3. **Shape the return** compact: round aggressively, trim samples, label proxies, make "no data" explicit.
 4. **Widen the candidate map** if the tool surfaces a dataset the model may act on: `run.referenced_dataset_ids.add(dataset_id)`.
 5. **Register a transient layer** for features to render: `transient_layers.register(...)`, return the `dataset_id` (10-min TTL → `show_layer` promptly).
@@ -31,12 +31,12 @@ Read-only tool → usually no change. New **action type** → add its validator 
 Tools never mutate map state (commit visual change only via `apply_map_actions`). Commit enforcement nudges once then synthesizes + auto-logs a problem — a well-described tool returning clean data commits naturally. Early-break after commit (no post-commit tool call). Iteration budget is bounded — return enough in one call.
 
 ## 5. Fake-client test — in `backend/tests/test_agent.py`
-Use a scripted fake-provider-client (canned tool calls); assert the handler's effect + the `{error,hint}` path. **Never hit real APIs** (Soda Straw, Places, ORS, Tavily, the model) — monkeypatch. Run `uv run pytest backend/tests/test_agent.py` and report the real result.
+Use a scripted fake-provider-client (canned tool calls); assert the handler's effect + the `{error,hint}` path. **Never hit real APIs** (the DataGateway, Places, ORS, Tavily, the model) — monkeypatch. Run `uv run pytest backend/tests/test_agent.py` and report the real result.
 
 ## Checklist
 - [ ] Spec matches data-shortlist §3 (no dead `places_popular_times`); trigger-clear description; tight schema
 - [ ] Handler validates input, returns `{error,hint}` on failure
-- [ ] Analytical data via Soda Straw; behaviour tools native
+- [ ] Analytical data via the DataGateway; behaviour tools native
 - [ ] `referenced_dataset_ids` widened / transient layer registered as needed
 - [ ] New action type validated (if any)
 - [ ] Fake-client test added, real APIs monkeypatched, suite green

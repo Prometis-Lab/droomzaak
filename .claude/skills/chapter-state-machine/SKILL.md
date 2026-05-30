@@ -28,7 +28,7 @@ Net-new for Droomzaak (PRD §3.3). A **thin** state machine wrapping the reused 
 1. **System prompt branches on `current_chapter`** — append a small per-chapter block (tools in scope, what to accumulate, the warm dream-first tone) to the reused base prompt.
 2. **`set_chapter_state(patch)` is the only writer** — validate the patch against the chapter's typed state before persisting; reject writes that skip an exit condition.
 3. **Gated transitions, server-owned.** Advancing requires the exit condition; the UI rail only *reflects* server state. Never gate purely client-side.
-4. **Each chapter still commits** — required tools fire, then `apply_map_actions` (demo-success needs a Soda Straw call + a committed action per chapter).
+4. **Each chapter still commits** — required tools fire, then `apply_map_actions` (demo-success needs a DataGateway call + a committed action per chapter).
 5. **Reuse, don't fork** — loop, ProviderAdapter, validation, sessions, canvas unchanged. The machine only loads chapter state pre-turn, exposes it to the prompt, persists the patch post-turn.
 
 ## Degraded branches (PRD §5.1)

@@ -20,7 +20,7 @@ Exit codes: `0` = clean (or only WARNs), `2` = findings → block. Capture the S
 On the changed diff, confirm:
 - **Secrets** — no keys/tokens in code or committed files; `.env*` not committed (only `.env.demo.example`); no secret in a URL/query/log.
 - **Injection** — SQL is **parameterized** (no string-formatted model/user input); no command injection; no `eval`/`exec` on model output; YAML via `safe_load`; no unsafe deserialization.
-- **Soda Straw boundary** — analytical reads go through the straw, not direct Postgres/DuckDB; token is `agent_*` read-only (`rules/data-tiers.md`).
+- **DataGateway boundary** — analytical reads go through the DataGateway (parameterized SQL), not direct Postgres/DuckDB; the connection is read-only (`rules/data-tiers.md`).
 - **SSRF / fetch** — OSM/Places/ORS/Street View/Tavily URLs built from validated params, not raw model output; timeouts + caps.
 - **Web** — FastAPI CORS not `*` in prod; route input validation; the package renderer escapes user/LLM text; no PII in the shareable `/pakket/<id>` URL.
 - **AuthZ / data exposure** — Belfirst per-company rows never on the founder path (aggregates only); no facial-image/PII scraping.
@@ -33,7 +33,7 @@ On the changed diff, confirm:
 Scan: gate exit 0 / 2 / WARN(no scanner)
 SAST: <file:line rule severity> …
 Secrets: …
-Checklist: secrets ✓/✗ · injection ✓/✗ · straw ✓/✗ · SSRF ✓/✗ · web ✓/✗ · authz ✓/✗ · supply-chain ✓/✗
+Checklist: secrets ✓/✗ · injection ✓/✗ · gateway ✓/✗ · SSRF ✓/✗ · web ✓/✗ · authz ✓/✗ · supply-chain ✓/✗
 Verdict: PASS / BLOCK
 ```
 BLOCK if the gate exits non-zero or any Critical/High checklist item fails. `/ship` does not commit on BLOCK.

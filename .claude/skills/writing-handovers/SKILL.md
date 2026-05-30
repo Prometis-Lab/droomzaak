@@ -19,7 +19,7 @@ Then prepend a one-line pointer to `docs/handovers/INDEX.md` (newest on top): `-
 1. **State now** — what works, what's half-done, what's broken. Be honest about failures (don't claim done if tests fail).
 2. **What I just did** — the change + why; the commit hash(es) if any.
 3. **Next concrete step** — the very next action, specific enough to start cold.
-4. **Open questions / decisions needed** — esp. anything blocking (e.g. Soda Straw token, Belfirst licence line, a secret).
+4. **Open questions / decisions needed** — esp. anything blocking (e.g. the DataGateway connection, Belfirst licence line, a secret).
 5. **Exact entry points** — files (`file:line`), the command to run, the spec in `docs/specs/`, the relevant skill/agent.
 6. **Gotchas hit** — so the next person doesn't re-hit them.
 7. **Verification** — how to confirm the current state (the test/command + expected result).

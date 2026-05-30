@@ -35,7 +35,7 @@ Deterministic outputs · `CREATE OR REPLACE TABLE` / upsert · atomic writes (te
 The network fetch is one injectable seam → `monkeypatch.setattr(...)` to a trimmed fixture → assert parsing/transform, not live data. Keep a small fixtures dir of sample responses. `uv run pytest`.
 
 ## 7. Two-tier boundary
-Render tier (DuckDB + GeoJSON) → map only. Analytical tier (Postgres) → agent only via Soda Straw (`.claude/rules/data-tiers.md`). Scripts land/curate data; they aren't the agent's runtime read path.
+Render tier (DuckDB + GeoJSON) → map only. Analytical tier (Postgres) → agent only via the DataGateway (`.claude/rules/data-tiers.md`). Scripts land/curate data; they aren't the agent's runtime read path.
 
 ## Checklist
 - [ ] All commands via `uv run` / `uv add` / `uv sync`; `uv.lock` committed; no pip / bare python
