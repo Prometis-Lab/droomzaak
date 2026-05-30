@@ -116,12 +116,6 @@ class CatalogStore:
             return None
         return json.loads(row[0])
 
-    def delete_session(self, session_id: str) -> None:
-        with self._lock:
-            self.connection.execute(
-                "DELETE FROM agent_sessions WHERE session_id = ?", [session_id]
-            )
-
     # ── debug ───────────────────────────────────────────────────────
     def save_debug(self, debug_id: str, session_id: str, stages: list) -> None:
         payload = json.dumps(stages, ensure_ascii=False, default=str)

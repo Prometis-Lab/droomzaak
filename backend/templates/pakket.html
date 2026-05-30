@@ -4,9 +4,11 @@
   anywhere offline. autoescape is ON (set in package_view.py) — do NOT add
   `| safe` or `{% autoescape false %}` anywhere; rendered free text (narrative,
   quote, notes, descriptions) is model/user-sourced and must stay escaped.
-  `deep_link` is rendered as <a href> — these come from TRUSTED curated config
-  only. If model output is ever piped into a link, validate the URL scheme first
-  (no `javascript:`).
+  `deep_link` is rendered as <a href>. Jinja escaping does NOT make a URL scheme
+  safe, so deep_link is sanitized server-side in package_view._safe_url (only
+  http(s)/site-relative survives; javascript:/data: drop to None and the link is
+  hidden). Keep that guard — deep_link can arrive from attacker-controlled
+  chapter-state, not just curated config.
   Fields are the REAL package shape (handle_compose_package); list/object fields
   may be empty — every section + loop is guarded.
 #}
