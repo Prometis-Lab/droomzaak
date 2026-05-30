@@ -33,8 +33,26 @@ export interface AgentAction {
   dataset_id?: string;
   markers?: { coordinates: [number, number]; label?: string }[];
   field?: string;
+  palette?: string;
+  label?: string;
   patch?: Record<string, unknown>;
   [k: string]: unknown;
+}
+
+// A set_layer_heatmap action resolved for the canvas: colour `field` over a
+// dataset using `palette` (mirrors agent_validation.py _PALETTES).
+export interface HeatmapSpec {
+  field: string;
+  palette?: string;
+  label?: string;
+}
+
+// Per-sector score from score_locations (REASON tier, via the DataGateway). The
+// frontend joins these onto the cached sector polygons (RENDER tier) to paint
+// the heatmap — the two tiers only ever meet here, at render time.
+export interface SectorScore {
+  nis9_code: string;
+  score: number;
 }
 
 export interface GeoFeature {
@@ -52,6 +70,7 @@ export interface TransientDataset {
   feature_count?: number;
   geojson?: FeatureCollection;
   ranked?: unknown[];
+  scores?: SectorScore[]; // score-locations: per-sector scores for the heatmap join
 }
 
 export interface AgentResponse {

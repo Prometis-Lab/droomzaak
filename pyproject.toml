@@ -17,6 +17,7 @@ dependencies = [
     "asyncpg>=0.30",
     "anthropic>=0.39",
     "openai>=1.54",
+    "shapely>=2.1.2",
 ]
 
 [dependency-groups]
@@ -31,7 +32,6 @@ dev = [
 # `uv sync --group pipeline`.
 pipeline = [
     "pyproj==3.7.2",
-    "shapely==2.1.2",
     "pandas[parquet]>=3.0.3",
     "loguru>=0.7.3",
 ]

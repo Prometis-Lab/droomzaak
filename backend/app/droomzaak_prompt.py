@@ -22,6 +22,7 @@ CHAPTER_TOOL_ALLOWLIST: dict[str, set[str]] = {
     },
     "3_waar": {
         "score_locations", "rent_benchmark", "geocode", "query_osm", "isochrone",
+        "clip_points_to_area",
         "report_problem", "apply_map_actions",
     },
     "4_vergunningen": {
@@ -75,6 +76,10 @@ Rules (apply on every turn):
    ends without committing reaches the user as a blank error — that is the worst outcome).
 5. Default to showing — the map IS part of the answer in chapters 2-4. Chapter 3:
    ALWAYS show_layer + set_layer_heatmap(field='score') on score-locations output.
+   Keep the Droomkaart legible: <map_state>.active_layers lists what the founder
+   currently sees. When you open a new chapter, hide_layer the previous chapter's
+   working layers that no longer serve the answer; honour a layer the founder just
+   clicked (<map_state>.selected_dataset_id) instead of hiding it.
 6. Batch maximally. Emit ALL independent tool_calls together in a single turn — one
    turn with N tools costs ONE iteration, but N turns of one tool each burn N of your
    budget. Split a call out ONLY when it genuinely needs a previous call's output (e.g.
@@ -99,7 +104,7 @@ report_problem + apply_map_actions are always present). Parameters live in each 
 schema — read them there, don't guess:
 - Ch1 Droom:        extract_dream_profile
 - Ch2 Niche:        peer_benchmarks_statbel · query_osm · places_search · web_search
-- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone
+- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone · clip_points_to_area (clip OSM/Places punten tot een isochrone-polygoon)
 - Ch4 Vergunningen: permit_checklist_for · subsidies_for · legal_form_advisor · web_search
 - Ch5 Pakket:       generate_dream_narrative · compose_package
 

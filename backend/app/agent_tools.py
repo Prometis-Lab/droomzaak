@@ -11,6 +11,8 @@ import json
 from typing import Any
 
 import httpx
+from shapely.geometry import shape, Point
+from shapely.ops import unary_union
 
 from backend.app import agent_validation, settings
 from backend.app.agent_loop import AgentRun
@@ -126,6 +128,53 @@ SPEC_ISOCHRONE = {
 }
 
 
+SPEC_CLIP_POINTS_TO_AREA = {
+    "name": "clip_points_to_area",
+    "description": (
+        "Clip a point layer to only those points that fall within a polygon area. "
+        "Typical use in Chapter 3 (Waar): clip query_osm or places_search points to an "
+        "isochrone polygon so only venues within walking/cycling reach are shown. "
+        "Returns a new transient layer; use show_layer to display it. "
+        "source_dataset_id must already exist in this turn's datasets (call query_osm or "
+        "places_search first). within.layer is the most common variant — pass the dataset_id "
+        "of an isochrone layer; within.polygon accepts a raw GeoJSON Polygon/MultiPolygon."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "source_dataset_id": {
+                "type": "string",
+                "description": "dataset_id of the point layer to clip (e.g. an osm- or places- id).",
+            },
+            "within": {
+                "type": "object",
+                "description": (
+                    "Exactly one of: {\"layer\": \"<dataset_id>\"} to union all polygons from a "
+                    "transient layer (e.g. an isochrone), or {\"polygon\": <GeoJSON Polygon|MultiPolygon>} "
+                    "for a raw geometry."
+                ),
+                "properties": {
+                    "layer": {"type": "string"},
+                    "polygon": {"type": "object"},
+                },
+            },
+            "label": {
+                "type": "string",
+                "description": "Short title for the new layer (Dutch). Auto-generated if omitted.",
+            },
+            "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "default": 500,
+                "description": "Cap on the number of features to keep in the result.",
+            },
+        },
+        "required": ["source_dataset_id", "within"],
+    },
+}
+
+
 def tool_specs() -> list[dict]:
     return [
         SPEC_APPLY_MAP_ACTIONS,
@@ -134,6 +183,7 @@ def tool_specs() -> list[dict]:
         SPEC_GEOCODE,
         SPEC_WEB_SEARCH,
         SPEC_ISOCHRONE,
+        SPEC_CLIP_POINTS_TO_AREA,
     ]
 
 
@@ -307,6 +357,171 @@ async def handle_isochrone(args: dict, run: AgentRun) -> dict:
     }
 
 
+async def handle_clip_points_to_area(args: dict, run: AgentRun) -> dict:
+    source_id = args.get("source_dataset_id")
+    if not isinstance(source_id, str) or not source_id:
+        return {
+            "error": "source_dataset_id is vereist",
+            "hint": "Geef de dataset_id van een punt-laag op (bv. na query_osm of places_search).",
+        }
+    source_ds = run.datasets.get(source_id)
+    if source_ds is None:
+        return {
+            "error": f"source_dataset_id '{source_id}' niet gevonden in de huidige datasets",
+            "hint": "Roep eerst query_osm of places_search aan om een punt-laag te maken.",
+        }
+    features = (source_ds.get("geojson") or {}).get("features")
+    if not isinstance(features, list):
+        return {
+            "error": f"dataset '{source_id}' bevat geen geldige GeoJSON features-lijst",
+            "hint": "Roep eerst query_osm of places_search aan om een punt-laag te maken.",
+        }
+
+    within = args.get("within")
+    if not isinstance(within, dict):
+        return {
+            "error": "within is vereist en moet een object zijn",
+            "hint": "Geef within.layer of within.polygon op.",
+        }
+    within_keys = [k for k in ("polygon", "layer") if k in within]
+    if len(within_keys) == 0:
+        return {
+            "error": "within moet exact één sleutel bevatten: 'polygon' of 'layer'",
+            "hint": "Geef within.layer (dataset_id van een isochrone) of within.polygon (GeoJSON geometrie) op.",
+        }
+    if len(within_keys) > 1:
+        return {
+            "error": "within mag slechts één sleutel bevatten, niet beide: 'polygon' en 'layer'",
+            "hint": "Gebruik within.layer (meest gebruikelijk) of within.polygon, niet beide tegelijk.",
+        }
+
+    within_geom = None
+    if "polygon" in within:
+        geom_obj = within["polygon"]
+        if not isinstance(geom_obj, dict):
+            return {
+                "error": "within.polygon moet een GeoJSON geometrie-object zijn",
+                "hint": "Geef een geldig GeoJSON Polygon of MultiPolygon object op.",
+            }
+        geom_type = geom_obj.get("type")
+        if geom_type not in ("Polygon", "MultiPolygon"):
+            return {
+                "error": f"within.polygon heeft type '{geom_type}', maar moet Polygon of MultiPolygon zijn",
+                "hint": "Controleer de GeoJSON geometrie.",
+            }
+        try:
+            within_geom = shape(geom_obj)
+        except Exception as exc:
+            return {
+                "error": f"within.polygon kon niet worden geparseerd: {exc}",
+                "hint": "Controleer of de GeoJSON coördinaten geldig zijn.",
+            }
+        if within_geom.is_empty:
+            return {
+                "error": "within.polygon is een lege geometrie",
+                "hint": "Geef een niet-lege polygoon op.",
+            }
+
+    else:  # "layer" variant
+        ref_id = within["layer"]
+        if not isinstance(ref_id, str) or not ref_id:
+            return {
+                "error": "within.layer moet een niet-lege dataset_id string zijn",
+                "hint": "Geef de dataset_id van een isochrone of polygoon-laag op.",
+            }
+        ref_ds = run.datasets.get(ref_id)
+        if ref_ds is None:
+            return {
+                "error": f"within.layer '{ref_id}' niet gevonden in de huidige datasets",
+                "hint": "Zorg dat de polygon-laag (bv. isochrone) al aangemaakt is voor je clipt.",
+            }
+        ref_features = (ref_ds.get("geojson") or {}).get("features") or []
+        polygons: list[Any] = []
+        for feat in ref_features:
+            if not isinstance(feat, dict):
+                continue
+            try:
+                g = shape(feat.get("geometry") or {})
+            except Exception:
+                continue
+            if g.is_empty or g.geom_type not in ("Polygon", "MultiPolygon"):
+                continue
+            polygons.append(g)
+        if not polygons:
+            return {
+                "error": f"within.layer '{ref_id}' bevat geen Polygon/MultiPolygon features",
+                "hint": "Controleer of de laag polygonen bevat (bv. een isochrone-laag).",
+            }
+        within_geom = polygons[0] if len(polygons) == 1 else unary_union(polygons)
+        run.referenced_dataset_ids.add(ref_id)
+
+    limit = 500
+    raw_limit = args.get("limit")
+    if raw_limit is not None:
+        try:
+            limit = max(1, min(int(raw_limit), 500))
+        except (TypeError, ValueError):
+            return {
+                "error": "limit moet een geheel getal zijn (1–500)",
+                "hint": "Geef een integer op voor limit.",
+            }
+
+    kept: list[dict] = []
+    examined = 0
+    rejected_by_within = 0
+    truncated = False
+
+    for feat in features:
+        if not isinstance(feat, dict):
+            continue
+        examined += 1
+        geom_raw = feat.get("geometry")
+        if not isinstance(geom_raw, dict):
+            rejected_by_within += 1
+            continue
+        try:
+            g = shape(geom_raw)
+            pt = Point(g.coords[0]) if g.geom_type == "Point" else g.representative_point()
+        except Exception:
+            rejected_by_within += 1
+            continue
+        if not within_geom.covers(pt):
+            rejected_by_within += 1
+            continue
+        kept.append(feat)
+        if len(kept) >= limit:
+            truncated = len(features) - examined > 0 or examined < len(features)
+            break
+
+    if not kept:
+        return {
+            "error": f"Geen punten van '{source_id}' vallen binnen het opgegeven gebied",
+            "hint": "Vergroot het zoekgebied of gebruik een ruimere isochrone.",
+            "source_dataset_id": source_id,
+            "examined": examined,
+            "rejected_by_within": rejected_by_within,
+        }
+
+    label = args.get("label") or f"{len(kept)} punten binnen het gebied"
+    dataset_id = f"clip-{_hash(source_id, args.get('within'), label)}"
+    run.datasets[dataset_id] = {
+        "dataset_id": dataset_id,
+        "feature_count": len(kept),
+        "geojson": {"type": "FeatureCollection", "features": kept},
+    }
+    run.referenced_dataset_ids.add(dataset_id)
+
+    return {
+        "dataset_id": dataset_id,
+        "feature_count": len(kept),
+        "source_dataset_id": source_id,
+        "kept": len(kept),
+        "examined": examined,
+        "label": label,
+        "truncated": truncated,
+    }
+
+
 HANDLERS = {
     "apply_map_actions": handle_apply_map_actions,
     "report_problem": handle_report_problem,
@@ -314,4 +529,5 @@ HANDLERS = {
     "geocode": handle_geocode,
     "web_search": handle_web_search,
     "isochrone": handle_isochrone,
+    "clip_points_to_area": handle_clip_points_to_area,
 }

@@ -434,6 +434,8 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
                 "dataset_id": fab["dataset_id"],
                 "feature_count": len(fab["ranked"]),
                 "ranked": fab["ranked"],
+                "scores": [{"nis9_code": s["nis9_code"], "score": s["score"]}
+                           for s in fab["ranked"]],
             }
             return fab
         return _gw_error(exc)
@@ -484,6 +486,10 @@ async def handle_score_locations(args: dict, run: AgentRun) -> dict:
         "dataset_id": dataset_id,
         "feature_count": len(ranked),
         "ranked": ranked,
+        # Every scored sector (nis9_code → score) for the render tier: the
+        # frontend joins these onto the cached sector polygons to paint the
+        # city-wide score heatmap. Geometry never crosses the gateway.
+        "scores": [{"nis9_code": s["nis9_code"], "score": s["score"]} for s in scored],
     }
     return {
         "dataset_id": dataset_id,
@@ -803,8 +809,14 @@ async def handle_places_search(args: dict, run: AgentRun) -> dict:
                        "user_ratings_total": p.get("userRatingCount"), "coordinates": coords,
                        "types": p.get("types", [])})
         if coords[0] is not None:
+            # Carry the user-relevant fields onto the feature so a map click can
+            # surface them — the `places` list above keeps the full tool result.
             features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": coords},
-                             "properties": {"name": (p.get("displayName") or {}).get("text")}})
+                             "properties": {"name": (p.get("displayName") or {}).get("text"),
+                                            "address": p.get("formattedAddress"),
+                                            "rating": p.get("rating"),
+                                            "user_ratings_total": p.get("userRatingCount"),
+                                            "types": p.get("types", [])}})
     dataset_id = f"places-{_hash(query)}"
     run.datasets[dataset_id] = {"dataset_id": dataset_id, "feature_count": len(features),
                                 "geojson": {"type": "FeatureCollection", "features": features}}

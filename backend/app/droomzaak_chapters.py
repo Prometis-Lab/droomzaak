@@ -141,7 +141,9 @@ def _make_on_commit(run, transitions, action_log, debug_stages, frontend_context
             f"Je bent nu in {advancing_to}. {block}\n\n{state_snapshot}\n\n"
             "Voer de verplichte calls van dit hoofdstuk uit en commit het eindresultaat "
             "met apply_map_actions. Je vorige reply was alleen een brug — deze commit "
-            "levert het echte resultaat dat de gebruiker ziet."
+            "levert het echte resultaat dat de gebruiker ziet. Houd de kaart leesbaar: "
+            "verberg met hide_layer de lagen uit <map_state>.active_layers die in dit "
+            "hoofdstuk niet meer nodig zijn (behalve een laag die de gebruiker net koos)."
         )
         return Continuation(
             tool_specs_neutral=_chapter_tool_specs(advancing_to), nudge_text=nudge

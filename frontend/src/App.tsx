@@ -4,7 +4,7 @@ import { MapCanvas, type MapMarker } from "./components/MapCanvas";
 import { Droomkaart } from "./components/Droomkaart";
 import { AgentPanel, type ChatMessage } from "./components/AgentPanel";
 import { getChapter, getSessionId, newSession, sendChat } from "./droomzaak/api";
-import type { ChapterState, TransientDataset } from "./droomzaak/types";
+import type { ChapterState, HeatmapSpec, TransientDataset } from "./droomzaak/types";
 
 // ── localStorage persistence helpers ─────────────────────────────
 const LS = {
@@ -55,6 +55,10 @@ export default function App() {
   const [datasets, setDatasets] = useState<Record<string, TransientDataset>>({});
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [filters, setFilters] = useState<Record<string, unknown[] | null>>({});
+  const [heatmaps, setHeatmaps] = useState<Record<string, HeatmapSpec>>({});
+  const [hiddenLayers, setHiddenLayers] = useState<string[]>([]);
+  const [layerStyles, setLayerStyles] = useState<Record<string, string>>({});
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // ── Layout state (persisted) ──────────────────────────────────
@@ -98,18 +102,33 @@ export default function App() {
     setDatasets({});
     setMarkers([]);
     setFilters({});
+    setHeatmaps({});
+    setHiddenLayers([]);
+    setLayerStyles({});
+    setSelectedDatasetId(null);
   }
 
   async function handleSend(text: string) {
     setMessages((m) => [...m, { role: "user", text }]);
     setBusy(true);
     try {
-      const res = await sendChat(text, sessionId);
+      // Tell the agent what the founder is currently looking at: the visible
+      // (non-hidden) layers and the dataset they last clicked. The backend
+      // renders these into <map_state> and widens its action candidate_map.
+      const context = {
+        active_layers: Object.keys(datasets).filter((id) => !hiddenLayers.includes(id)),
+        selected_dataset_id: selectedDatasetId,
+      };
+      const res = await sendChat(text, sessionId, context);
       setMessages((m) => [...m, { role: "agent", text: res.reply }]);
       if (res.chapter_state) setChapterState(res.chapter_state);
       if (res.datasets) setDatasets((d) => ({ ...d, ...res.datasets }));
       const newMarkers: MapMarker[] = [];
       const newFilters: Record<string, unknown[] | null> = {};
+      const newHeatmaps: Record<string, HeatmapSpec> = {};
+      const hide = new Set<string>();
+      const show = new Set<string>();
+      const newStyles: Record<string, string> = {};
       for (const a of res.actions || []) {
         if (a.type === "place_marker" && Array.isArray(a.markers)) {
           for (const mk of a.markers) newMarkers.push({ coordinates: mk.coordinates, label: mk.label });
@@ -118,10 +137,29 @@ export default function App() {
           // null clears the filter; any array applies it.
           newFilters[a.dataset_id] = Array.isArray(a.filter) ? (a.filter as unknown[]) : null;
         }
+        if (a.type === "set_layer_heatmap" && typeof a.dataset_id === "string" && typeof a.field === "string") {
+          newHeatmaps[a.dataset_id] = { field: a.field, palette: a.palette, label: a.label };
+        }
+        if (a.type === "hide_layer" && typeof a.dataset_id === "string") hide.add(a.dataset_id);
+        if (a.type === "show_layer" && typeof a.dataset_id === "string") show.add(a.dataset_id);
+        if (a.type === "set_layer_style" && typeof a.dataset_id === "string") {
+          const color = (a.style as { color?: unknown } | undefined)?.color;
+          if (typeof color === "string") newStyles[a.dataset_id] = color;
+        }
       }
       if (newMarkers.length) setMarkers(newMarkers);
       if (Object.keys(newFilters).length) {
         setFilters((prev) => ({ ...prev, ...newFilters }));
+      }
+      if (Object.keys(newHeatmaps).length) {
+        setHeatmaps((prev) => ({ ...prev, ...newHeatmaps }));
+      }
+      if (hide.size || show.size) {
+        // show_layer wins over hide_layer if the agent emits both for one id.
+        setHiddenLayers((prev) => [...new Set([...prev, ...hide])].filter((id) => !show.has(id)));
+      }
+      if (Object.keys(newStyles).length) {
+        setLayerStyles((prev) => ({ ...prev, ...newStyles }));
       }
     } catch {
       setMessages((m) => [...m, { role: "agent", text: "Er ging iets mis. Probeer het opnieuw." }]);
@@ -211,7 +249,15 @@ export default function App() {
     >
       <ChapterRail current={current} />
 
-      <MapCanvas datasets={datasets} markers={markers} filters={filters} />
+      <MapCanvas
+        datasets={datasets}
+        markers={markers}
+        filters={filters}
+        heatmaps={heatmaps}
+        hiddenLayers={hiddenLayers}
+        layerStyles={layerStyles}
+        onSelectDataset={setSelectedDatasetId}
+      />
 
       {panelCollapsed ? (
         collapsedTab
