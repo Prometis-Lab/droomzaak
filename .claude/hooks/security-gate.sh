@@ -25,6 +25,20 @@ ok()   { printf '  \033[32m[ OK ]\033[0m %s\n' "$*"; }
 bad()  { printf '  \033[31m[FAIL]\033[0m %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Scope the local clone to its security rules only. The full semgrep-rules tree
+# bundles non-security namespaces (lang.maintainability, lang.correctness,
+# lang.best-practice, react.portability.i18next) that flood a *security* gate
+# with lint noise. Every security rule lives under a `security/` subdir
+# (python/lang/security, python/flask/security, python/sqlalchemy/security, …),
+# so collecting those subtrees keeps exactly the rules this gate exists for.
+# Echoes one dir per line for whichever of the given language roots exist.
+security_rule_dirs() {  # args: language names
+  local lang
+  for lang in "$@"; do
+    [ -d "$RULES/$lang" ] && find "$RULES/$lang" -type d -name security 2>/dev/null
+  done
+}
+
 echo "── Droomzaak security gate (${MODE}) ─────────────────────────────"
 
 # ── Secrets ────────────────────────────────────────────────────────────
@@ -49,8 +63,14 @@ if have opengrep; then
   ran_sast=1
   RULES="${OPENGREP_RULES:-${ROOT}/.cache/semgrep-rules}"
   if [ -d "$RULES" ]; then
-    opengrep scan -f "$RULES/python" -f "$RULES/javascript" -f "$RULES/typescript" --error . || findings=1
-    ok "SAST scanned (opengrep)"
+    FLAGS=()
+    while IFS= read -r d; do FLAGS+=(-f "$d"); done < <(security_rule_dirs python javascript typescript)
+    if [ "${#FLAGS[@]}" -gt 0 ]; then
+      opengrep scan "${FLAGS[@]}" --error . || findings=1
+      ok "SAST scanned (opengrep, security rules)"
+    else
+      warn "opengrep ruleset at $RULES has no python/javascript/typescript security rules — is it a full clone of github.com/semgrep/semgrep-rules?"
+    fi
   else
     warn "opengrep present but no ruleset at $RULES — clone github.com/semgrep/semgrep-rules there (Opengrep ships no default rules)."
   fi
@@ -59,22 +79,21 @@ elif have semgrep || have uvx; then
   SEMGREP="semgrep"; have semgrep || SEMGREP="uvx semgrep"
   RULES="${SEMGREP_RULES:-${ROOT}/.cache/semgrep-rules}"
   # Prefer a local ruleset (offline-safe — the demo machine's network may be flaky);
-  # add only the language dirs that actually exist, so a partial/shallow clone
-  # degrades to the registry instead of erroring (a missing --config path makes
-  # semgrep exit 7, which `|| findings=1` would misread as a finding). Fall back to
-  # the Semgrep registry (p/…) when no local language dir is present.
+  # scope it to the `security/` subtrees only (security_rule_dirs) so the gate runs
+  # security rules, not the clone's maintainability/correctness/portability lint. A
+  # partial/shallow clone with no security dirs degrades to the registry instead of
+  # erroring (a missing --config path makes semgrep exit 7, which `|| findings=1`
+  # would misread as a finding). Fall back to the Semgrep registry (p/…) otherwise.
   CFG=()
-  for lang in python javascript typescript; do
-    [ -d "$RULES/$lang" ] && CFG+=(--config "$RULES/$lang")
-  done
+  while IFS= read -r d; do CFG+=(--config "$d"); done < <(security_rule_dirs python javascript typescript)
   if [ "${#CFG[@]}" -gt 0 ]; then
-    SRC="semgrep CE, local rules"
+    SRC="semgrep CE, local security rules"
   else
     warn "no local ruleset at $RULES (clone github.com/semgrep/semgrep-rules there for offline SAST) — using the Semgrep registry, which needs network."
     if [ "$MODE" = "fast" ]; then
-      CFG=(--config p/python --config p/javascript --config p/react --config p/secrets)
+      CFG=(--config p/secrets --config p/security-audit)
     else
-      CFG=(--config p/default)
+      CFG=(--config p/security-audit)
     fi
     SRC="semgrep CE, registry"
   fi
