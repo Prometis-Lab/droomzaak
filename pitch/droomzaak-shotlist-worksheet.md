@@ -11,7 +11,7 @@
 - **Pipeline:** Nano Banana keyframe(s) → Runway Gen-4.5 *image-to-video* → cut on movement in the edit.
 - **Generate long, cut short.** Generate ~10s per shot; use only the 2–3s where the action lands. The extra frames are "handles" for clean match-cuts.
 - **The transform method (core craft):** for each world-change, set Runway's **start frame = KF of world A** and **end frame = KF of world B** (same Lore pose). Runway rebuilds the world around the held pose → seamless Old Spice transform. Prompt describes the *motion* that carries the cut (pull-forward, whip-pan, turn).
-- **Settings:** Gen-4.5, image-to-video, 16:9, ~10s, motion moderate-high. Generate **2–3 variants per shot**, pick the best.
+- **Settings:** Gen-4.5, image-to-video, **5:7 portrait (864×1214)**, ~10s, motion moderate-high. Generate **2–3 variants per shot**, pick the best.
 - **Audio:** none from Runway — VO + music + SFX are added in the edit.
 
 ---
@@ -29,7 +29,7 @@
 > **Runway prompt style** (per the `media-prompt-craft` skill): simple, **positive phrasing only**, **motion-focused** (the start/end keyframes carry the look — don't re-describe appearance), **one scene per clip**, **no negative list**. Generate ~10s, 2–3 variants, cut on the movement.
 
 ### S1 · The grey desk *(setup)*
-- **Frames:** start = KF0 · **GEN** ~10s → **CUT** ~6s · **VO:** *(none, then)* "Je job beu?"
+- **Frames:** start = KF0 · **GEN** ~10s → **CUT** ~6s · **VO:** *(none, then)* "Ben je je job beu?" (`Ben_je_je_job_beu`)
 - **Camera/transition:** slow push-in; ends on her sigh + papers thudding onto desk.
 - **Runway prompt:**
 ```
@@ -38,7 +38,7 @@ a fresh stack of papers drops onto the desk in front of her. Slow push-in. She i
 ```
 
 ### S2 · The voice *(fourth wall opens)*
-- **Frames:** start = KF0 (same desk) · **GEN** ~10s → **CUT** ~5s · **VO:** "Was dit je droomjob?"
+- **Frames:** start = KF0 (same desk) · **GEN** ~10s → **CUT** ~5s · **VO:** "Was dit dan je droomjob?" (`was_dit_dan_je_droomjob`)
 - **Camera:** static medium; she lifts her head, glances around for the voice, then looks **straight at camera**, then shakes her head.
 - **Runway prompt:**
 ```
@@ -47,7 +47,7 @@ directly into the camera; she pauses, then slowly shakes her head. Static shot. 
 ```
 
 ### S3 · Transform → BISTRO *(Wat dan wel?)*
-- **Frames:** start = KF0 · **end = KF1** · **GEN** ~10s → **CUT** ~3s · **VO:** "Wat dan wel?"
+- **Frames:** start = KF0 · **end = KF1** · **GEN** ~10s → **CUT** ~3s · **VO:** "Wat zou je droomjob dan wel zijn?" (`wat_zou_je_droomjob_dan_wel_zijn`)
 - **Camera/transition:** she's **pulled forward**; the grey office rebuilds into a cozy bistro around her, her clothes resolve into the terracotta apron, coffee machine steams. She smiles, surprised.
 - **Runway prompt:**
 ```
@@ -58,7 +58,7 @@ world around her changes.
 ```
 
 ### S4 · Transform → FLORIST *(Dit meer je stijl?)*
-- **Frames:** start = KF1 · **end = KF2** · **GEN** ~10s → **CUT** ~3s · **VO:** "Dit meer je stijl?"
+- **Frames:** start = KF1 · **end = KF2** · **GEN** ~10s → **CUT** ~3s · **VO:** "Dit misschien meer je stijl?" (`dit_misschien_meer_je_stijl`)
 - **Camera/transition:** on a turn/whip-pan the bistro becomes a flower shop; apron changes; blooms fill the frame; she lights up.
 - **Runway prompt:**
 ```
@@ -68,7 +68,7 @@ One continuous turning motion. She stays centered while the world around her cha
 ```
 
 ### S5 · Transform → BIKE WORKSHOP *(Of dit?)*
-- **Frames:** start = KF2 · **end = KF3** · **GEN** ~10s → **CUT** ~3s · **VO:** "Of dit?"
+- **Frames:** start = KF2 · **end = KF3** · **GEN** ~10s → **CUT** ~3s · **VO:** "Of misschien deze?" (`of_misschien_deze`)
 - **Camera/transition:** a duck/whip and the flowers become an industrial bike-repair workshop; work apron; she ends with a confident **nod at camera**, happy.
 - **Runway prompt:**
 ```
@@ -79,7 +79,7 @@ centered while the world around her changes.
 ```
 
 ### S6 · Back to reality
-- **Frames:** start = KF3 · **end = KF4** · **GEN** ~10s → **CUT** ~4s · **VO:** "Ondernemen, da's een zaak van dromen."
+- **Frames:** start = KF3 · **end = KF4** · **GEN** ~10s → **CUT** ~4s · **VO:** "Ondernemen, da's een zaak van dromen." (`ondernemen_das_een_zaak_van_dromen`)
 - **Camera/transition:** gentle dissolve back to the grey desk; same woman, but a new spark in her eye.
 - **Runway prompt:**
 ```
@@ -146,8 +146,7 @@ The Gemini dream frames are **~5:7, not 9:16**. All six keyframes are conformed 
 - KF0/KF4 read near-identical by design — KF4's "changed" feel comes from a **warmer grade + S6 performance**, not a regen.
 - A true-9:16 or 16:9 cut later = **Runway Expand** on the finished master (this 5:7 won't cleanly crop to either).
 
-## 9:16 social cut notes (legacy — now the master)
-- Re-frame each shot to center Lore (she's always centered, so it crops well).
-- Either generate native 9:16 from 9:16 keyframes, or reframe the 16:9 master in the edit.
-- The tab-explosion + landing page need a 9:16 capture/crop.
-- Keep the same VO + music; tighten to ~30–40s if needed for social.
+## Other-aspect cuts (from the 5:7 master)
+- The master is **5:7 portrait (864×1214)**. For a true-9:16 or 16:9 cut, use **Runway Expand** on the finished master (it won't cleanly crop either way).
+- Lore is centered in every shot, so vertical reframes crop cleanly.
+- For a short social cut, tighten to ~30–40s by trimming the product-demo tail (S9) and one dream module.

@@ -11,7 +11,7 @@ You turn a brief into **model-ready prompts** for the Droomzaak pitch video — 
 Invoke the **`media-prompt-craft`** skill — it holds the per-model grammars, the transform method, and the house rules. Then read the relevant `pitch/` ground truth before writing a single prompt:
 - `pitch/droomzaak-grounding-storyline.md` — the **invariant** story (never contradict it).
 - `pitch/droomzaak-lore-reference.md` — Lore's **master identity block**, wardrobe states, style/palette bible, keyframe list.
-- `pitch/droomzaak-shotlist-worksheet.md` — shot IDs (S1–S8), keyframes (KF0–KF4), the worksheet format to mirror.
+- `pitch/droomzaak-shotlist-worksheet.md` — shot IDs (S1–S10; S1–S7 Runway, S8–S10 edit/screen-capture), keyframes (KF0–KF5), the worksheet format to mirror.
 - `pitch/droomzaak-vo-script.md` — the Flemish VO + ElevenLabs settings.
 
 ## What you produce

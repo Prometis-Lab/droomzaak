@@ -51,10 +51,10 @@ Cast into the spine per version. Changing them does **not** touch the narration 
 
 | Slot | This version (default) | Notes |
 |---|---|---|
-| `{{HERO}}` | **Lore**, early 30s | locked via the character reference sheet |
-| `{{DESK_WORLD}}` | grey office, papers, dull computer | the boring "before" she's escaping |
-| `{{DREAM_ENVIRONMENTS}}` | ① trendy **bistro** (owner, apron, steaming coffee machine) · ② professional **kitchen** (chef whites) | the **swappable transform modules** — one per "Of dit?" beat |
-| `{{GOOGLE_QUERY}}` | *"Hoe start ik een restaurant?"* | matches the dream trade |
+| `{{HERO}}` | **Lore**, late 20s | locked via the character reference sheet |
+| `{{DESK_WORLD}}` | grey bureaucratic office, papers, dull computer | the boring "before" she's escaping |
+| `{{DREAM_ENVIRONMENTS}}` | ① trendy **bistro** (terracotta apron, steaming coffee machine) · ② **florist** (canvas apron, blooms) · ③ **bike-repair workshop** (work apron, bandana, urban Ghent) | the **swappable transform modules** — one per dream beat |
+| `{{GOOGLE_QUERY}}` | *"Hoe start ik een eigen zaak?"* | broad — matches the multi-trade dreams |
 
 > **Rule:** the spoken narration must stay trade-agnostic ("Wat dan wel? / Dit meer je stijl? / Of dit?"). Only the *visuals* and `{{GOOGLE_QUERY}}` ever name the trade. This is what makes the storyline reusable — and it lets you **scale runtime by adding more `{{DREAM_ENVIRONMENTS}}` modules** (each is one more "Of dit?" beat).
 
@@ -62,15 +62,15 @@ Cast into the spine per version. Changing them does **not** touch the narration 
 
 ## The narration — invariant Flemish duet (with EN gloss)
 
-> Male nl-BE narrator: warm, confident, a little teasing. Soft G, Flemish vocabulary. The hero "answers" only with physical reactions (in the **Hero beat** column).
+> Male nl-BE narrator: warm, confident, a little teasing. Soft G, Flemish vocabulary. The hero "answers" only with physical reactions (in the **Hero beat** column). Beats 1–5 below are the **invariant concept** lines; the film uses slightly lengthened, TTS-friendly wording — see [`droomzaak-vo-script.md`](droomzaak-vo-script.md) for the exact as-rendered text + clip names.
 
 | # | Narrator (Flemish, invariant) | Hero's wordless answer | EN gloss |
 |---|---|---|---|
 | 1 | *"Je job beu?"* | confused, searches for the voice, finds camera | "Fed up with your job?" |
 | 2 | *"Was dit je droomjob?"* | shakes head, faint disappointment | "Was this your dream job?" |
 | 3 | *"Wat dan wel?"* | gets pulled into the first transform | "Then what?" |
-| 4 | *"Dit meer je stijl?"* | smiles in surprise (bistro) → amazement (kitchen) | "More your style?" |
-| 5 | *"Of dit?"* | nods at camera, natural happy smile | "Or this?" |
+| 4 | *"Dit meer je stijl?"* | the world becomes the florist shop — she lights up | "More your style?" |
+| 5 | *"Of dit?"* | the world becomes the bike workshop — amazed, then a confident nod to camera | "Or this?" |
 | 6 | *"Ondernemen, da's een zaak van dromen."* | back at the grey desk | "Entrepreneurship — it's a matter of dreams." |
 | 7 | *(silence — let the tab-explosion play)* | overwhelmed by the pop-ups | — |
 | 8 | *"Laat administratie en keuzestress je dromen niet tegenhouden."* | (screen → Droomzaak landing page) | "Don't let paperwork and choice-stress hold your dreams back." |
@@ -95,17 +95,17 @@ She shakes her head, a flicker of disappointment.
 **Beat 3 · The pull (Transform → bistro)** — Narrator: *"Wat dan wel?"*
 Lore is **pulled forward into the next frame** (Old Spice-style: hero constant, world rebuilds around her). The grey desk swaps to a **trendy bistro**; her grey clothes resolve into a **colourful outfit + apron**. Camera eases back to reveal **her own bistro**, a coffee machine blowing steam beside her. She smiles, surprised. *She's aware of the transition; the bistro is not.*
 
-**Beat 4 · Option A (Transform → kitchen)** — Narrator: *"Dit meer je stijl?"*
-On a movement, the world rebuilds again into a **professional kitchen**; Lore is now in **chef's whites**, looking around in amazement.
+**Beat 4 · Transform → florist** — Narrator: *"Dit meer je stijl?"*
+On a movement, the world rebuilds again into a **bright flower shop**; Lore is now in a **canvas florist apron** among the blooms, lighting up with joy.
 
-**Beat 5 · Option B** — Narrator: *"Of dit?"*
-Lore **nods at camera**, a natural, happy smile. *(Add more `{{DREAM_ENVIRONMENTS}}` modules here to extend.)*
+**Beat 5 · Transform → bike workshop** — Narrator: *"Of dit?"*
+A final movement and the world becomes an **industrial bike-repair workshop** (urban Ghent); Lore is in a **work apron + bandana**, amazed — then she **nods at camera**, a natural, happy smile. *(Add or swap `{{DREAM_ENVIRONMENTS}}` modules here to extend or re-trade.)*
 
 **Beat 6 · Back to reality** — Narrator: *"Ondernemen, da's een zaak van dromen."*
 Smooth fade back to the **original desk shot** — Lore behind her grey desk again, but the look in her eyes has changed.
 
 **Beat 7 · The keuzestress** *(no VO — let it play)*
-Cut to **over-the-shoulder** on her screen. Google is open: **"Hoe start ik een restaurant?"** A new tab pops open. Then another. Then more and more in fast succession until the screen **drowns in pop-ups**. Camera **pushes in** toward the screen.
+Cut to **over-the-shoulder** on her screen. Google is open: **"Hoe start ik een eigen zaak?"** A new tab pops open. Then another. Then more and more in fast succession until the screen **drowns in pop-ups**. Camera **pushes in** toward the screen.
 
 **Beat 8 · The way out** — Narrator: *"Laat administratie en keuzestress je dromen niet tegenhouden."*
 The push-in transitions smoothly into a clean **screen capture**, which **fades to black**, then resolves on the **Droomzaak landing page**.

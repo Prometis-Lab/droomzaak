@@ -104,7 +104,7 @@ For each keyframe below: **attach the hero reference from Step 1**, keep the **s
 | **KF4** | Back at the grey admin desk — **same side monitor as KF0** | changed — a spark in her eye | "...wearing the BEFORE wardrobe again at the same grey desk with the same slim side monitor, light a touch warmer, a new spark of determination, looking at camera." |
 | **KF5** | **Over-the-shoulder at the desk** (separate composition) — her shoulder + curly hair soft in foreground, the monitor sharp in centre-right showing Google *"Hoe start ik een eigen zaak?"* | overwhelmed (face mostly unseen) | "Over-the-shoulder from behind her right shoulder at the grey desk, shoulder/hair soft in foreground, monitor sharp showing a Google search 'Hoe start ik een eigen zaak?', clean legible on-screen text, desaturated office. For S7 keuzestress + S8 push-in." |
 
-> Keep **KF0–KF4** in the **same chest-up framing + face scale** so Runway can morph the *world* around a held Lore (the seamless transform). **KF5 is a separate over-the-shoulder composition** for S7 — it only needs the hero reference for hair/skin (face mostly unseen). KF0 and KF4 share the same desk + side-monitor layout so we can cut to KF5 and end on that screen. Generate 9:16 crops too if you want native vertical keyframes.
+> Keep **KF0–KF4** in the **same chest-up framing + face scale** so Runway can morph the *world* around a held Lore (the seamless transform). **KF5 is a separate over-the-shoulder composition** for S7 — it only needs the hero reference for hair/skin (face mostly unseen). KF0 and KF4 share the same desk + side-monitor layout so we can cut to KF5 and end on that screen. The conformed set (all **864×1214, 5:7**) lives in `pitch/keyframes/final/` — use that for Runway.
 >
 > **Note (master block):** the §1 identity block ends with "big natural smile" — that's an *expression*, not a stable trait, and it conflicts with the non-smiling KF0/KF4/KF5. In keyframe prompts, set expression per-shot and drop the fixed smile. Worth moving "big natural smile" out of §1's identity line into a "characteristic warm smile when happy" note.
 
@@ -118,6 +118,6 @@ Same flow, conversational: upload the hero reference, then ask for each world ke
 
 ## 6. Quick checklist
 - [ ] Hero reference generated + saved (Step 1)
-- [ ] KF0–KF4 generated, identity-locked, same pose (Step 2)
+- [ ] KF0–KF5 generated, identity-locked, conformed to 864×1214 in `final/` (Step 2)
 - [ ] 9:16 keyframe crops (optional)
 - [ ] All saved + named (e.g. `lore_KF1_bistro_v1.png`) for the worksheet

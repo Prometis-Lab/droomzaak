@@ -58,7 +58,7 @@ Detail level is **model-specific**; matching it is what separates a first-try hi
 - Use directional camera language: `slow push-in`, `dolly`, `crane up`, `whip-pan`, `static`. Keep motion **moderate–high** for transforms, gentle for reveals.
 - Single shots (no transform): one keyframe as start frame + an action description.
 - **Keep it simple, positive, one scene** (see Level of detail): short prompt, positive phrasing only, a single motion — and **do not append the image negative list** (Gen-4.5 has no negative prompting).
-- Always note: generate ~10s, 2–3 variants, cut on the movement. 16:9 master; 9:16 by reframing centered Lore.
+- Always note: generate ~10s, 2–3 variants, cut on the movement. **5:7 portrait master (864×1214)** — the native ratio of the Droomzaak keyframes.
 
 ### ElevenLabs (Flemish VO)
 - **Select the Flemish (nl-BE) voice directly** (Jan Schevenels / Hans Claesen / Walter / Jann) — *not* via the "Dutch (Belgium)" language dropdown (that can route to GCP/Azure voices).
@@ -70,7 +70,7 @@ Detail level is **model-specific**; matching it is what separates a first-try hi
 - Prompts in **fenced code blocks**, copy-paste-ready, one per shot/keyframe.
 - For video: name the **start/end keyframes**, the **camera/transition**, and the **gen-vs-cut** durations.
 - For images: include the **master identity block + wardrobe + world + negative list**.
-- Mirror the worksheet's shot IDs (S1–S8, KF0–KF4) so it drops straight in.
+- Mirror the worksheet's shot IDs (S1–S10, KF0–KF5) so it drops straight in. Note: S1–S7 are Runway clips; **S8–S10 are edit/screen-capture beats** (website reveal, product demo, CTA), not Runway prompts.
 - Offer **2–3 variant angles** when a shot is risky (transforms, hands, text).
 
 ## Negative list (append to image prompts)

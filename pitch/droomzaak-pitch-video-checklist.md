@@ -1,6 +1,6 @@
 # Droomzaak — AI Pitch Video: Production Checklist
 
-> Master checklist for the **"Guided Journey"** spot — a ~45s fully AI-generated Flemish brand film. This is the *process hub*; the creative + generation detail lives in the linked docs.
+> Master checklist for the **"Guided Journey"** spot — a ~60s fully AI-generated Flemish brand film (brand spot ~38s + product-demo tail ~22s). This is the *process hub*; the creative + generation detail lives in the linked docs.
 >
 > - **Story spine (invariant):** [`droomzaak-grounding-storyline.md`](droomzaak-grounding-storyline.md)
 > - **Lore reference + style bible:** [`droomzaak-lore-reference.md`](droomzaak-lore-reference.md)
@@ -34,11 +34,11 @@
 ## 1. The pipeline (how the pieces connect)
 
 ```
-Nano Banana ──(KF0–KF4, identity-locked)──► Runway Gen-4.5 ──(S1–S8 clips)──► Edit
-   (keyframes)        start/end frames        (image-to-video)        │
-ElevenLabs (Flemish VO) ───────────────────────────────────────────► │
-Suno (music) + SFX ────────────────────────────────────────────────► ├─► Color → 16:9 master
-Screen-capture (tabs) + Droomzaak landing page ────────────────────► │       └─► 9:16 social
+Nano Banana ──(KF0–KF5, identity-locked)──► Runway Gen-4.5 ──(S1–S7 clips)──► Edit
+   (keyframes)        start/end frames        (image-to-video)         │
+ElevenLabs (Flemish VO, S1–S10) ───────────────────────────────────► │
+Suno (music) + SFX ────────────────────────────────────────────────► ├─► Color grade → 5:7 master (864×1214)
+Tab-explosion capture + landing page + product demo (S8–S10) ──────► │
 ```
 
 ---
@@ -62,7 +62,7 @@ Screen-capture (tabs) + Droomzaak landing page ───────────
 ### Phase A — Pre-production (lock before generating)
 - [ ] Story spine approved (grounding storyline).
 - [ ] **Lore hero reference** generated + saved (lore-reference §4, Step 1).
-- [ ] **KF0–KF4** keyframes generated, identity-locked, same pose (Step 2).
+- [ ] **KF0–KF5** keyframes generated, identity-locked (KF0–KF4 same pose; KF5 the OTS), conformed to 864×1214 in `keyframes/final/`.
 - [x] VO script final-read for natural nl-BE (vo-script §pronunciation) — ear-checked on the rendered clips.
 - [ ] Runway + ElevenLabs + Suno accounts ready; Resolve installed.
 - [ ] Decide tab-explosion + landing page = real capture (recommended) vs generated.
