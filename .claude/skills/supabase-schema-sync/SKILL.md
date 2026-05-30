@@ -5,10 +5,10 @@ description: Use when changing or inspecting the Droomzaak Postgres warehouse ho
 
 # Supabase schema sync (local mirror + safe changes)
 
-The `droomzaak` analytical warehouse lives on **Supabase Postgres**; we keep a full local copy under `supabase/` so we can query locally and redeploy fast (a saved-me-hours pattern + demo-day failover insurance). Pair with `warehouse-schema-expert` (owns the schema knowledge + SQL). **Rigid** on the boundary + the change workflow.
+The `droomzaak` analytical warehouse lives on **Supabase Postgres**; we keep a full local copy under `supabase/` so we can query locally and redeploy fast (a saved-me-hours pattern + demo-day redeploy insurance). Pair with `warehouse-schema-expert` (owns the schema knowledge + SQL). **Rigid** on the boundary + the change workflow.
 
 ## Boundary (don't blur)
-- **Agent runtime → Soda Straw → this Postgres.** Analytical tools never read Supabase directly (`.claude/rules/data-tiers.md`). The Supabase MCP + the local mirror are **dev/deploy tooling only**.
+- **Agent runtime → DataGateway → this Postgres.** Analytical tools never read Supabase directly (`.claude/rules/data-tiers.md`). The Supabase MCP + the local mirror are **dev/deploy tooling only**.
 - **The Supabase MCP is READ-ONLY.** Inspection only (`list_tables`, `execute_sql` SELECTs, schema verification). **Never** run DDL/DML through the MCP.
 
 ## The local mirror (`supabase/`)
@@ -27,7 +27,7 @@ The `droomzaak` analytical warehouse lives on **Supabase Postgres**; we keep a f
 
 ## Query locally / redeploy
 - **Query:** `psql -f supabase/schema.sql` into a scratch DB, or `supabase start` (local stack) — explore + `EXPLAIN` analytical SQL without touching the hosted DB.
-- **Redeploy:** apply `migrations/` to a fresh project (`supabase db push`) or `supabase db reset` locally — the whole schema + RPCs come back. This backs the `DATA_BACKEND=postgres_direct` failover (PRD §6.1): same Postgres, stood up anywhere, in minutes.
+- **Redeploy:** apply `migrations/` to a fresh project (`supabase db push`) or `supabase db reset` locally — the whole schema + RPCs come back: the same Postgres, stood up anywhere, in minutes.
 
 ## Rules
 - Idempotent everything; parameterized SQL; analytical functions are SELECT-only (mutations live in migrations, never the agent path).
@@ -38,4 +38,4 @@ The `droomzaak` analytical warehouse lives on **Supabase Postgres**; we keep a f
 - [ ] Inspected via read-only MCP; verified names against `schema.sql`
 - [ ] Idempotent script in `scripts/`; operator ran it; confirmed
 - [ ] Folded into `migrations/`; `schema.sql` regenerated; `QUICK_REFERENCE.md` updated; script archived
-- [ ] No DDL via MCP; no secrets committed; analytical reads still via Soda Straw
+- [ ] No DDL via MCP; no secrets committed; analytical reads still via the DataGateway

@@ -19,7 +19,7 @@ Default to the changed surface: `git diff --name-only` (or the files `/ship` han
 
 ## What NOT to do
 - **Never change behaviour, outputs, or public/tool contracts.** No new features, no "while I'm here" refactors beyond the diff.
-- Don't touch the Droomzaak invariants: keep analytical reads routed through Soda Straw, SQL parameterized, proxies labelled, tool code provider-neutral, errors returned as `{error, hint}`.
+- Don't touch the Droomzaak invariants: keep analytical reads routed through the DataGateway, SQL parameterized, proxies labelled, tool code provider-neutral, errors returned as `{error, hint}`.
 - Don't remove tests or weaken validation to "simplify".
 
 ## Verify

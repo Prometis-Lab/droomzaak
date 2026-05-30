@@ -14,11 +14,11 @@ The agent reasons over three distinct things; conflating them is the main planni
 
 | Kind | What it is | Where it lives | Examples |
 |---|---|---|---|
-| **A. Analytical tables** | Numbers the agent queries to back a claim | Postgres `droomzaak` schema, behind **Soda Straw** | demographics, KBO peers, Belfirst financials, bankruptcies, sale-price-per-sector, footfall composite |
+| **A. Analytical tables** | Numbers the agent queries to back a claim | Postgres `droomzaak` schema, via the **DataGateway** | demographics, KBO peers, Belfirst financials, bankruptcies, sale-price-per-sector, footfall composite |
 | **B. Curated config** | Rules & links, not a dataset — hand-authored, deterministic, demo-safe | YAML/JSON in repo (loaded into Postgres or read directly) | `permit_rules`, `subsidies`, `legal_form` facts, NACE-BEL reference |
 | **C. Live tool calls** | Fetched per-request, never pre-stored | External APIs via agent tools | OSM Overpass, Google Places search, Street View, OpenRouteService isochrones, Tavily `web_search` |
 
-Map rendering stays on Map Pilot's existing DuckDB + cached GeoJSON (Tier-1 RENDER) — **never** the agent's reasoning path. Soda Straw is the ingress for **A** only.
+Map rendering stays on Map Pilot's existing DuckDB + cached GeoJSON (Tier-1 RENDER) — **never** the agent's reasoning path. The DataGateway is the ingress for **A** only.
 
 Tiering (from the brief): **T1** = on disk or one-command fetch, build for real · **T2** = real but needs a slice/fetch job, cache once · **T3** = mention only, stubbed in UI with citation. All spatial joins on **NIS9 statistical sectors**; secondary on the **25 stadswijken**.
 
@@ -96,7 +96,7 @@ Each chapter lists the concrete questions the agent must answer, the **claim** t
 
 ## 2. Postgres `droomzaak` schema — the load list (Section A data)
 
-This is the exact set of analytical tables to stand up Friday behind Soda Straw. Source column says where each comes from and whether it's already local.
+This is the exact set of analytical tables to stand up Friday behind the DataGateway. Source column says where each comes from and whether it's already local.
 
 | Canonical table | Feeds | Source(s) | On disk? | Granularity | Notes |
 |---|---|---|---|---|---|
@@ -116,7 +116,7 @@ This is the exact set of analytical tables to stand up Friday behind Soda Straw.
 | `permit_rules` | `permit_checklist_for` | curated YAML → table | curate | rule rows | [§4](#4-curated-config-section-b--not-datasets) |
 | `subsidies` | `subsidies_for` | curated JSON → table | curate | per scheme | [§4](#4-curated-config-section-b--not-datasets) |
 
-**Friday load job:** extend the planned `dump_duckdb_to_postgres.py` to (1) copy the on-disk canonical layers, (2) load the Statbel/GIPOD/WFS T2 fetches from [§5](#5-download-now-friday--exact-urls), (3) **geocode KBO + Belfirst with the inherited Prometis toolkit → lat/lon + NIS9, then aggregate per sector**, (4) ingest the curated config files (`permit_rules`, `subsidies`, `sector_attributes`, `nace_ref`). Then register the DB as a Soda Straw source and smoke-test each tool. The toolkit's `geo_core` also supplies NIS9 sector centroids for `score_locations` distance maths.
+**Friday load job:** extend the planned `dump_duckdb_to_postgres.py` to (1) copy the on-disk canonical layers, (2) load the Statbel/GIPOD/WFS T2 fetches from [§5](#5-download-now-friday--exact-urls), (3) **geocode KBO + Belfirst with the inherited Prometis toolkit → lat/lon + NIS9, then aggregate per sector**, (4) ingest the curated config files (`permit_rules`, `subsidies`, `sector_attributes`, `nace_ref`). Then point the DataGateway at the DB and smoke-test each tool. The toolkit's `geo_core` also supplies NIS9 sector centroids for `score_locations` distance maths.
 
 ---
 
@@ -138,7 +138,7 @@ This is the exact set of analytical tables to stand up Friday behind Soda Straw.
 | `web_search` (Tavily) | new | **Tavily API** (key available) — domain-biased to official sources | C |
 | `apply_map_actions`, `set_layer_filter`, `spatial_count`, `nearest_features`, `geocode`, `query_osm`, `isochrone`, `route`, `aggregate_features`, `features_within_radius` | reused | Map Pilot existing | A/C |
 
-**`web_search` (Tavily) — fallback knowledge tool.** A thin tool over the Tavily API (key already available; a colleague wires it into the agent loop alongside the Soda Straw client). Bias queries to official domains (`stad.gent`, `favv-afsca.be`, `vlaanderen.be`, `vlaio.be`, `pmv.eu`, `unisono.be`). **Role: long-tail fallback, not primary.** The rehearsed chapters answer entirely from curated config + Postgres (deterministic); `web_search` catches off-script jury questions ("Alcohol na 21u?", "Schoolstraat-zone?") and lets the agent cite a live official page when config doesn't cover it. It surfaces links, never acts (consistent with the "deep-links only, no booking" stance). Curated config is the engine; `web_search` is the safety net — never the reverse during a timed demo.
+**`web_search` (Tavily) — fallback knowledge tool.** A thin tool over the Tavily API (key already available; a colleague wires it into the agent loop alongside the DataGateway). Bias queries to official domains (`stad.gent`, `favv-afsca.be`, `vlaanderen.be`, `vlaio.be`, `pmv.eu`, `unisono.be`). **Role: long-tail fallback, not primary.** The rehearsed chapters answer entirely from curated config + Postgres (deterministic); `web_search` catches off-script jury questions ("Alcohol na 21u?", "Schoolstraat-zone?") and lets the agent cite a live official page when config doesn't cover it. It surfaces links, never acts (consistent with the "deep-links only, no booking" stance). Curated config is the engine; `web_search` is the safety net — never the reverse during a timed demo.
 
 ---
 
@@ -257,40 +257,39 @@ Composite `footfall_sector` score, normalized 0–1 per sector:
 
 ---
 
-## 7. Data access & infra — Soda Straw, the gateway, the failover
+## 7. Data access & infra — the DataGateway
 
-_The data/tool layer is our focus; a colleague wires the Soda Straw MCP client + Tavily into the agent loop. This section is the contract for how they connect._
+_The data/tool layer is our focus; a colleague wires the **DataGateway** (asyncpg pool over the `droomzaak` Postgres) + Tavily into the agent loop. This section is the contract for how they connect._
 
 ### 7.1 The three access paths
 
-- **Analytical (A) → Soda Straw → Postgres:** every `peer_benchmarks_statbel`, `score_locations`, `rent_benchmark`, `permit_checklist_for`, `subsidies_for` call. This is the demo's "every datum routes through Soda Straw" claim — the debug overlay shows it.
-- **Live tools (C, behaviour not data) → native:** `query_osm` (Overpass `https://overpass-api.de/api/interpreter`, set User-Agent + bbox + cache between runs), `places_search` (Google Places New), Street View Static, `isochrone` (OpenRouteService), `web_search` (Tavily). These do **not** go through Soda Straw.
+- **Analytical (A) → DataGateway → Postgres:** every `peer_benchmarks_statbel`, `score_locations`, `rent_benchmark`, `permit_checklist_for`, `subsidies_for` call. This is the demo's "every analytical datum routes through one audited DataGateway seam" claim — the debug overlay shows it, every call routed through the single seam.
+- **Live tools (C, behaviour not data) → native:** `query_osm` (Overpass `https://overpass-api.de/api/interpreter`, set User-Agent + bbox + cache between runs), `places_search` (Google Places New), Street View Static, `isochrone` (OpenRouteService), `web_search` (Tavily). These do **not** go through the DataGateway.
 - **Map render → DuckDB + cached GeoJSON**, untouched. Never the agent's reasoning path.
 
-### 7.2 How the map agent reaches Soda Straw (runtime, not dev-only)
+### 7.2 How the agent reaches the DataGateway (runtime)
 
-Soda Straw is a **runtime dependency** for analytical calls — it's the company launching *at* this hackathon, and the pitch is scored on routing analytical calls through it. The browser never speaks MCP:
+Analytical access runs through **one internal seam** — the `DataGateway` — so every analytical claim crosses a single audited boundary. The browser never speaks SQL:
 
 ```
 Browser (MapLibre + chat) ──HTTP /api/agent/chat──► FastAPI backend
                                                         │  agent_loop.py tool dispatch
                           peer_benchmarks / score_locations / rent_benchmark / ...
                                                         │  (thin wrappers call)
-                                                 MCP client session
-                                   (python `mcp` SDK · streamable-HTTP · bearer token)
+                                                 DataGateway.query(sql, params)
+                                                   (asyncpg · parameterized SQL)
                                                         │
-                                            Soda Straw MCP ──► Postgres
+                                            DataGateway ──► Postgres
 ```
 
-- **One MCP session, opened at backend startup** (FastAPI lifespan), reused for every request. Call `list_tools()` once at startup to discover Soda Straw's tool shape (likely a generic `query(straw, sql)` — **confirm by calling it; it's not publicly documented**) and build wrappers around it.
-- **Auth:** mint **one service/agent token** (`agent_*` scoped identity) with read on the Postgres straw; all calls run under it. No per-end-user OAuth.
-- **Tonight (self-serve, no credit card):** sign up at `sodastraw.ai/trial/start`, connect Postgres as a straw, mint the token, run `list_tools()`. Everything downstream depends on that one call.
+- **One asyncpg pool, opened at backend startup** (FastAPI lifespan), reused for every request. Every analytical tool is a thin wrapper that calls `DataGateway.query(sql, params)` with **parameterized SQL only** — never string-formatted input.
+- The browser never speaks SQL; it only hits `/api/agent/chat`, and the agent reaches the reason tier exclusively through the gateway.
 
-### 7.3 Failover — the demo safety net
+### 7.3 Swappability
 
-Put a **`DataGateway` interface** in front of analytical access with a feature flag `DATA_BACKEND=soda_straw|postgres_direct` and a direct `asyncpg` pool to the **same** Postgres running the **same** SQL. Soda Straw is primary/default (required + scored); direct-Postgres is break-glass if the day-one hosted service wobbles on stage (PRD risk #1). Wrap Soda Straw calls in a short timeout + circuit-breaker. This also keeps the architecture **swappable** post-hackathon, where Soda Straw's value (governance/audit/per-user access) matters more than in a single-agent demo.
+The `DataGateway` interface is **the one path** to analytical data — there is no primary-vs-failover split. Putting all analytical reads behind a single seam keeps the architecture **swappable** post-hackathon: a governance/audit/per-user-access gateway could later sit in front of (or replace) the asyncpg implementation without touching any tool. Wrap gateway calls in a short timeout so a wobbly DB fails fast rather than hanging the demo.
 
-- **Stretch:** wrap Overpass / GIPOD live as small MCP servers behind Soda Straw to make the "everything through Soda Straw" claim literal — only past hour 6.
+- **Stretch:** wrap Overpass / GIPOD live behind the same gateway pattern (a thin internal client per source) to make the "everything routes through one seam" claim literal — only past hour 6.
 
 ---
 

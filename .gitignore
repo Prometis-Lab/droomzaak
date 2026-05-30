@@ -255,3 +255,17 @@ dist/
 supabase/.branches/
 supabase/.temp/
 supabase/.env
+
+# ── Droomzaak app build artifacts ──
+/data/
+*.duckdb
+*.duckdb.wal
+frontend/dist/
+.python-version
+
+# TS build info
+*.tsbuildinfo
+
+# Vite config build artifacts (emitted by tsc -b)
+frontend/vite.config.js
+frontend/vite.config.d.ts
