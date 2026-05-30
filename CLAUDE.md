@@ -81,6 +81,7 @@ Brainstorm → Plan/Spec → Spec-critic loop (≥8/10) → Implement → /ship 
 | `open-data-ingest-specialist` | Friday data load, Belgian open-data clip/join, permit/subsidy config, Soda Straw registration | sonnet |
 | `warehouse-schema-expert` | the `droomzaak` schema + the parameterized SQL behind every analytical tool | sonnet |
 | `python-data-engineer` | any Python data-manipulation script (pandas/geopandas/DuckDB, the dump job, geo clip/join) — strict uv venvs, idempotent, monkeypatched tests | sonnet |
+| `media-prompt-smith` | craft copy-paste prompts for the pitch video's image/video/voice models (Runway Gen-4.5, Nano Banana Pro, GPT Image 2, ElevenLabs) from a shot/scene/VO brief — pairs with `media-prompt-craft` | sonnet |
 | `code-reviewer` | quality/patterns/security pass (build-gate first) — runs in `/ship` | opus |
 | `spec-critic` | adversarial plan/spec gate to ≥8/10 (think-strategies) | opus |
 | `security-reviewer` | Aikido-aligned scan + checklist — runs in `/ship` | opus |
@@ -91,7 +92,7 @@ Reviewers/critics are **read-only** (no Edit/Write/git). Proactively dispatch: S
 
 ## Skills — what to reach for
 
-**Project (the contracts):** `add-agent-tool` · `soda-straw-data-tool` · `wire-agent-action-to-canvas` · `chapter-state-machine` · `belgian-open-data-ingest` · `dream-narrative-style` · `supabase-schema-sync`.
+**Project (the contracts):** `add-agent-tool` · `soda-straw-data-tool` · `wire-agent-action-to-canvas` · `chapter-state-machine` · `belgian-open-data-ingest` · `dream-narrative-style` · `supabase-schema-sync` · `media-prompt-craft` (pitch-video image/video/voice prompts).
 **Authored (cross-cutting):** `writing-implementation-specs` · `writing-handovers` · `security-scan` · `browser-data-curation` · `python-data-scripts` · `retrospective`.
 **Vendored (Apache-2.0, in `skills/vendored/`):** `frontend-design` · `webapp-testing` · `mcp-builder` · `skill-creator` · `claude-api`.
 **Via superpowers plugin:** `brainstorming` · `writing-plans` · `test-driven-development` · `systematic-debugging` · `subagent-driven-development` · `verification-before-completion` · `git-worktrees`.
@@ -106,6 +107,7 @@ Skill auto-activation is imperfect — this table is the backstop. When a task m
 | sourcing/clipping/joining a Belgian dataset, or curating permit/subsidy config | `belgian-open-data-ingest` |
 | extracting from WAF-blocked/JS sources (VLAIO, VLAREM) | `browser-data-curation` (Claude-in-Chrome MCP) |
 | writing Chapter-5 narrative / Tuesday-morning card | `dream-narrative-style` |
+| writing prompts for the pitch video's image/video/voice models | `media-prompt-craft` (+ `media-prompt-smith` agent) |
 | changing/inspecting the Supabase warehouse schema or RPCs | `supabase-schema-sync` (+ `warehouse-schema-expert`) |
 | writing/fixing a Python data script (pandas/geopandas/DuckDB) | `python-data-scripts` (+ `python-data-engineer` agent) |
 | after a session, to sharpen skills/agents | `retrospective` (`/retro`) |
