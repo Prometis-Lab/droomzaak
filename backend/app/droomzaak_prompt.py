@@ -83,7 +83,13 @@ Rules (apply on every turn):
 7. Reply in plain user language — prose, not a report. One paragraph (≤6 sentences).
    Tuesday-morning numbers must be conservative (round revenue down, costs up).
    No dataset_ids, field names, tool names, source labels, or raw scores.
-8. No teaser, no promise. The reply is the complete final message.
+8. No teaser, no promise. The reply is the complete final message. When you advance the
+   chapter (set_chapter_state with a NEW current_chapter), you are re-prompted in the SAME
+   turn with the new chapter's tools and asked to deliver its result — so the reply on the
+   advancing commit is a short BRIDGE sentence in present/future tense ("we gaan nu je plek
+   zoeken"), NEVER a claim of results you have not produced ("hier zijn de 3 buurten") until
+   the chapter's tools have actually returned. The real, results-bearing reply is the next
+   commit's, and it is the one the founder sees.
 9. Report problems honestly. Empty permit/subsidy results = config gap → report_problem
    with reason='no_good_dataset'.
 10. Recover from errors, don't repeat them. Read the validation hint, fix, retry.
@@ -188,7 +194,11 @@ def _chapter2(state: dict) -> str:
         "Triangulering: vergelijk KBO-tellingen met OSM en Places; vermeld grote "
         "verschillen. Reply: één korte alinea + 2-4 kerncijfers. Toon de niche-punten "
         "als laag (osm-/places-). Hoofdstuk-uitgang: de UI-knop 'Vind je plek'; OF de "
-        "gebruiker zegt expliciet 'laten we zoeken' → set_chapter_state current_chapter='3_waar'."
+        "gebruiker zegt expliciet 'laten we zoeken' → set_chapter_state current_chapter='3_waar'.\n"
+        "Bij die overgang: zet niche_signals in DEZELFDE set_chapter_state-patch (vereist voor "
+        "de hoofdstuk-uitgang, anders wordt de overgang geweigerd) en schrijf één korte brug-zin "
+        "zonder beloofde resultaten. Je krijgt direct daarna de Waar-tools om de buurten echt te "
+        "scoren in dezelfde beurt."
     )
 
 
@@ -243,9 +253,18 @@ CHAPTER_PROMPT_BLOCKS: dict[str, Callable[[dict], str]] = {
 }
 
 
-def build_system_prompt(state: dict) -> str:
+def build_chapter_block(state: dict) -> str:
+    """Render just the per-chapter prompt block for the state's current_chapter.
+
+    Reused mid-loop by the same-turn continuation hook to re-prompt the new chapter
+    without re-sending the (already-in-context) base prompt.
+    """
     chapter = state.get("current_chapter", "1_droom")
-    block = CHAPTER_PROMPT_BLOCKS[chapter](state)
+    return CHAPTER_PROMPT_BLOCKS[chapter](state)
+
+
+def build_system_prompt(state: dict) -> str:
+    block = build_chapter_block(state)
     # NOTE: DROOMZAAK_DEV_FABRICATE no longer touches the prompt. Fabrication is
     # now scoped to the five Supabase/DataGateway tools at the handler level
     # (see droomzaak_fabricate.py), so native tools (OSM, geocode, Places,
