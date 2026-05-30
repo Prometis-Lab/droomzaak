@@ -14,9 +14,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from backend.app import droomzaak_chapters, settings
+from backend.app import droomzaak_chapters, package_view, settings
 from backend.app.storage import CatalogStore, get_store
 
 log = logging.getLogger("droomzaak")
@@ -131,3 +132,24 @@ async def put_chapter(session_id: str, body: ChapterPatch, store: CatalogStore =
     new_state = droomzaak_chapters.apply_state_patch(state, validated["patch"])
     store.save_chapter_state(session_id, new_state)
     return {"current_chapter": new_state["current_chapter"], "chapter_state": new_state}
+
+
+# ── Droomzaak-pakket (Chapter-5 printable artefact) ──────────────────────
+@app.post("/api/droomzaak/package/{session_id}")
+async def finalise_package(session_id: str, store: CatalogStore = StoreDep) -> dict:
+    """Compose + persist the pakket from the latest chapter_state, then hand back
+    its URL. Lets the frontend finalise regardless of whether the agent already
+    called compose_package."""
+    pkg = package_view.compose_from_state(store, session_id)
+    if pkg is None:
+        raise HTTPException(404, "Nog geen pakket voor deze sessie.")
+    return {"package_url": f"/pakket/{session_id}", "ready": True}
+
+
+@app.get("/pakket/{session_id}", response_class=HTMLResponse)
+async def render_pakket(session_id: str, store: CatalogStore = StoreDep) -> HTMLResponse:
+    """Server-rendered printable Droomzaak-pakket (render/session tier only)."""
+    ctx = package_view.build_package_context(store, session_id)
+    if ctx is None:
+        raise HTTPException(404, "Nog geen pakket voor deze sessie.")
+    return HTMLResponse(package_view.render_package_html(ctx))

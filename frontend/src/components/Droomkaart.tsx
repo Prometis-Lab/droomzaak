@@ -1,7 +1,18 @@
 import type { ChapterState } from "../droomzaak/types";
+import { finalisePackage } from "../droomzaak/api";
+
+async function openPakket(sessionId: string) {
+  try {
+    const url = await finalisePackage(sessionId);
+    window.open(url, "_blank", "noopener");
+  } catch {
+    // The render route composes from chapter_state too — open it directly.
+    window.open(`/pakket/${sessionId}`, "_blank", "noopener");
+  }
+}
 
 /** The accumulating-profile sidebar — fills in as chapters complete. */
-export function Droomkaart({ state }: { state: ChapterState | null }) {
+export function Droomkaart({ state, sessionId }: { state: ChapterState | null; sessionId?: string | null }) {
   const dp = state?.dream_profile;
   const ns = state?.niche_signals as Record<string, unknown> | null | undefined;
   const loc = state?.chosen_location;
@@ -54,6 +65,11 @@ export function Droomkaart({ state }: { state: ChapterState | null }) {
             <h3>Pakket</h3>
             <a href={state.package_url} target="_blank" rel="noreferrer">Open je Droomzaak-pakket →</a>
           </div>
+        )}
+        {sessionId && state?.current_chapter === "5_pakket" && !state?.package_url && (
+          <button className="dk-pakket-btn" onClick={() => openPakket(sessionId)}>
+            Stel je Droomzaak-pakket samen →
+          </button>
         )}
       </div>
     </aside>

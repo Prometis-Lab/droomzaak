@@ -49,3 +49,11 @@ export async function putChapter(
   if (!res.ok) throw new Error(`putChapter failed: ${res.status}`);
   return res.json();
 }
+
+/** Finalise the pakket from the latest chapter_state, return its (same-origin) URL. */
+export async function finalisePackage(sessionId: string): Promise<string> {
+  const res = await fetch(`/api/droomzaak/package/${sessionId}`, { method: "POST" });
+  if (!res.ok) throw new Error(`finalisePackage failed: ${res.status}`);
+  const data = await res.json();
+  return data.package_url as string;
+}

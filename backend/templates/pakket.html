@@ -1,0 +1,159 @@
+{#
+  Droomzaak-pakket — the printable founder takeaway.
+  Self-contained: all CSS inline, no external assets/fonts/JS so it prints/PDFs
+  anywhere offline. autoescape is ON (set in package_view.py) — do NOT add
+  `| safe` or `{% autoescape false %}` anywhere; rendered free text (narrative,
+  quote, notes, descriptions) is model/user-sourced and must stay escaped.
+  `deep_link` is rendered as <a href> — these come from TRUSTED curated config
+  only. If model output is ever piped into a link, validate the URL scheme first
+  (no `javascript:`).
+  Fields are the REAL package shape (handle_compose_package); list/object fields
+  may be empty — every section + loop is guarded.
+#}
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jouw Droomzaak-pakket</title>
+  <style>
+    :root {
+      --ink: #2b2118; --muted: #6f6152; --cream: #f7f1e6; --card: #fffdf8;
+      --line: #e3d8c4; --terra: #b5562f; --olive: #7a7a45; --faded: #b4a892;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--cream); color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      line-height: 1.55;
+    }
+    .sheet { max-width: 820px; margin: 0 auto; padding: 48px 40px 64px; }
+    header.dz-head { border-bottom: 3px solid var(--terra); padding-bottom: 20px; margin-bottom: 28px; }
+    .dz-eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 12px; color: var(--terra); margin: 0 0 6px; }
+    h1 { font-size: 34px; margin: 0 0 8px; line-height: 1.15; text-transform: capitalize; }
+    .dz-tagline { font-size: 18px; color: var(--muted); margin: 0; font-style: italic; }
+    .dz-date { font-size: 13px; color: var(--faded); margin: 10px 0 0; }
+    section.dz-block { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px; margin: 0 0 20px; }
+    h2 { font-size: 20px; margin: 0 0 14px; color: var(--ink); border-left: 4px solid var(--olive); padding-left: 10px; }
+    p { margin: 0 0 10px; }
+    .dz-narrative p, .dz-tuesday p { font-size: 16px; }
+    .dz-tuesday { background: #f1ecdd; }
+    dl.dz-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0; }
+    dl.dz-facts dt { color: var(--muted); }
+    dl.dz-facts dd { margin: 0; }
+    ul.dz-list { list-style: none; margin: 0; padding: 0; }
+    ul.dz-list > li { padding: 12px 0; border-top: 1px solid var(--line); }
+    ul.dz-list > li:first-child { border-top: 0; }
+    .dz-item-title { font-weight: 600; }
+    .dz-item-meta { font-size: 14px; color: var(--muted); margin: 2px 0 0; }
+    .dz-note { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+    a { color: var(--terra); }
+    .dz-tag { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px; background: #efe7d6; color: var(--muted); margin-left: 8px; }
+    li.dz-ended { opacity: 0.5; }
+    li.dz-ended .dz-tag { background: #e7d6d0; color: var(--terra); }
+    .dz-proxy { font-size: 13px; color: var(--olive); font-style: italic; margin-top: 6px; }
+    footer.dz-foot { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+    footer.dz-foot strong { color: var(--ink); }
+    @media print {
+      body { background: #fff; }
+      .sheet { max-width: none; padding: 0; }
+      section.dz-block { break-inside: avoid; box-shadow: none; }
+      a { color: var(--ink); text-decoration: underline; }
+    }
+  </style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="dz-head">
+    <p class="dz-eyebrow">Droomzaak · jouw startplan voor Gent</p>
+    <h1>{{ dream_profile.sector or "Jouw Droomzaak" }}</h1>
+    {% if dream_profile.founder_quote %}<p class="dz-tagline">“{{ dream_profile.founder_quote }}”</p>{% endif %}
+    {% if generated_at %}<p class="dz-date">Samengesteld op {{ generated_at }}</p>{% endif %}
+  </header>
+
+  {% if narrative_paragraphs %}
+  <section class="dz-block dz-narrative">
+    <h2>Jouw verhaal</h2>
+    {% for para in narrative_paragraphs %}<p>{{ para }}</p>{% endfor %}
+  </section>
+  {% endif %}
+
+  {% if tuesday_morning %}
+  <section class="dz-block dz-tuesday">
+    <h2>Een dinsdagochtend</h2>
+    <p>{{ tuesday_morning }}</p>
+  </section>
+  {% endif %}
+
+  {% if chosen_location %}
+  <section class="dz-block">
+    <h2>De plek</h2>
+    <dl class="dz-facts">
+      {% if chosen_location.address %}<dt>Adres</dt><dd>{{ chosen_location.address }}</dd>{% endif %}
+      {% if chosen_location.wijk_nl %}<dt>Wijk</dt><dd>{{ chosen_location.wijk_nl }}</dd>{% endif %}
+    </dl>
+  </section>
+  {% endif %}
+
+  {% if permit_checklist %}
+  <section class="dz-block">
+    <h2>Vergunningen</h2>
+    <ul class="dz-list">
+      {% for p in permit_checklist %}
+      <li>
+        <div class="dz-item-title">{{ p.permit_name }}{% if p.authority %} <span class="dz-tag">{{ p.authority }}</span>{% endif %}</div>
+        <p class="dz-item-meta">
+          {% if p.estimated_cost_eur is not none %}± €{{ p.estimated_cost_eur }}{% endif %}
+          {% if p.estimated_processing_days is not none %} · ± {{ p.estimated_processing_days }} dagen{% endif %}
+        </p>
+        {% if p.notes_nl %}<p class="dz-note">{{ p.notes_nl }}</p>{% endif %}
+        {% if p.deep_link %}<p class="dz-note"><a href="{{ p.deep_link }}">Meer info &amp; aanvragen →</a></p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if subsidies %}
+  <section class="dz-block">
+    <h2>Subsidies &amp; premies</h2>
+    <ul class="dz-list">
+      {% for s in subsidies %}
+      <li class="{% if s.status == 'ended_2025' %}dz-ended{% endif %}">
+        <div class="dz-item-title">
+          {{ s.name }}
+          {% if s.authority %}<span class="dz-tag">{{ s.authority }}</span>{% endif %}
+          {% if s.status == 'ended_2025' %}<span class="dz-tag">vervallen in 2025</span>{% endif %}
+        </div>
+        <p class="dz-item-meta">{% if s.max_amount_eur is not none %}tot €{{ s.max_amount_eur }}{% endif %}</p>
+        {% if s.description_nl %}<p class="dz-note">{{ s.description_nl }}</p>{% endif %}
+        {% if s.deep_link %}<p class="dz-note"><a href="{{ s.deep_link }}">Meer info →</a></p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if legal_form and legal_form.recommended %}
+  <section class="dz-block">
+    <h2>Rechtsvorm</h2>
+    <p><strong>{{ legal_form.recommended }}</strong>{% if legal_form.alternative %} <span class="dz-tag">alternatief: {{ legal_form.alternative }}</span>{% endif %}</p>
+    {% if legal_form.rationale_nl %}<p>{{ legal_form.rationale_nl }}</p>{% endif %}
+    {% if legal_form.estimated_setup_cost_eur is not none %}<p class="dz-item-meta">Oprichtingskosten ± €{{ legal_form.estimated_setup_cost_eur }}</p>{% endif %}
+    {% if legal_form.notes_nl %}<p class="dz-proxy">{{ legal_form.notes_nl }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <footer class="dz-foot">
+    <p><strong>Let op:</strong> bedragen, doorlooptijden en voorwaarden zijn
+    <strong>indicatieve schattingen</strong> — geen offerte of definitieve beslissing.
+    Bevestig vergunningen, subsidievoorwaarden en bedragen altijd bij de bevoegde
+    instantie: <strong>Stad Gent</strong> (Ondernemersloket / OOG),
+    <strong>FAVV</strong> (voedselveiligheid) en je boekhouder of notaris voor de
+    rechtsvorm.</p>
+  </footer>
+
+</div>
+</body>
+</html>

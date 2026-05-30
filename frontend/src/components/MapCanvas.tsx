@@ -2,6 +2,31 @@ import { useEffect, useRef } from "react";
 import maplibregl, { type StyleSpecification } from "maplibre-gl";
 import type { TransientDataset } from "../droomzaak/types";
 
+// ResizeObserver hook — watches the container and calls map.resize() on every
+// size change so MapLibre's canvas stays in sync when panels are dragged.
+function useMapResize(
+  containerRef: React.RefObject<HTMLElement | null>,
+  mapRef: React.RefObject<maplibregl.Map | null>
+) {
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let rafId: number;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    });
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 const GHENT_CENTER: [number, number] = [3.7257, 51.0543];
 
 const OSM_STYLE: StyleSpecification = {
@@ -28,10 +53,14 @@ type Props = {
 };
 
 export function MapCanvas({ datasets, markers }: Props) {
+  const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
   const markerObjsRef = useRef<maplibregl.Marker[]>([]);
+
+  // Watch the outer section for size changes → keep MapLibre canvas correct.
+  useMapResize(sectionRef, mapRef);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -113,7 +142,7 @@ export function MapCanvas({ datasets, markers }: Props) {
   }, [markers]);
 
   return (
-    <section className="map-canvas">
+    <section ref={sectionRef} className="map-canvas">
       <div className="map-overlay-title">Gent · jouw Droomkaart</div>
       <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
     </section>
