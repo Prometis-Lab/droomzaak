@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import type { ChapterId } from "./ChapterRail";
 
 export interface ChatMessage {
@@ -19,9 +19,10 @@ type Props = {
   messages: ChatMessage[];
   busy: boolean;
   onSend: (text: string) => void;
+  chatInputRef?: Ref<HTMLDivElement>;
 };
 
-export function AgentPanel({ current, messages, busy, onSend }: Props) {
+export function AgentPanel({ current, messages, busy, onSend, chatInputRef }: Props) {
   const [draft, setDraft] = useState("");
 
   const submit = () => {
@@ -47,7 +48,7 @@ export function AgentPanel({ current, messages, busy, onSend }: Props) {
         ))}
         {busy && <div className="chat-msg agent thinking">Droomzaak denkt na…</div>}
       </div>
-      <div className="chat-input">
+      <div className="chat-input" ref={chatInputRef}>
         <textarea
           value={draft}
           placeholder={PLACEHOLDERS[current]}
