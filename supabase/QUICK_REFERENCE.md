@@ -1,7 +1,7 @@
 # Droomzaak warehouse — quick reference
 
 Hand-maintained lookup for the `droomzaak` schema on Supabase (project `knwnjhbdmmdkqnmakqkr`).
-**Live as of 2026-05-30** — 16 tables, 317,191 rows, loaded by `pipelines/droomzaak/load_to_supabase.py`.
+**Live as of 2026-05-30** — 18 tables, 317,699 rows, loaded by `pipelines/droomzaak/load_to_supabase.py`.
 Ground truth: `supabase/migrations/` + `supabase/schema.sql`; full join contract + measured hit-rates in
 `pipelines/droomzaak/joins.md`. Join keys: **NIS9 statistical sector**, **REFNIS 44021**, **NACE** (5/4/2-digit), **`ent`** (10-digit enterprise no.), **wijk id**.
 
@@ -17,6 +17,8 @@ Ground truth: `supabase/migrations/` + `supabase/schema.sql`; full join contract
 | `demographics_sector` | 255 | `nis9_code` | score_locations (Q3) | Statbel pop + cars/hh + fiscal income; **absolute cols are NIS8-parent totals — don't re-sum** |
 | `housing_price_sector` | 795 | `nis9_code` | rent_benchmark | Statbel IMMO — **sale € PROXY, never per-address**; NIS8-regrained to spine |
 | `transit_access_sector` | 197 | `nis9_code` | score_locations / footfall | De Lijn GTFS — `n_stops`, `departures_total` |
+| `footfall_sector` | 254 | `nis9_code` | score_locations (Q3) | composite `0.65·transit+0.25·cyclist+0.10·bike_parking` (min-max/sector); cyclist=fietstelpaal 2025, bike=fietsenstallingen. **proxy, not measured** |
+| `demand_proxies_sector` | 254 | `nis9_code` | score_locations (Q3) | student study density (UGent bloklocaties): `n_blok_locations`, `study_seats`. tourism/jobs deferred |
 | `disruption_events` | 814 | `nis9_code` | score_locations, Ch3 | inname-openbaar-domein + omleidingen (point→sector) |
 | `permits_events` | 44,408 | `nis9_code` | permit_checklist_for (evidence) | Omgevingsloket (iioa/kh/gd), clipped to Gent (centroid→sector) |
 | `gent_points` | 215 | `nis9_code` | Ch3 context | Gent bedrijvencentra / POI / bloklocaties (point→sector) |
@@ -30,9 +32,7 @@ Ground truth: `supabase/migrations/` + `supabase/schema.sql`; full join contract
 ## Not yet built (planned — see droomzaak-data-shortlist.md §2 / §5)
 | Table | Feeds | Status |
 |---|---|---|
-| `footfall_sector` | score_locations | composite over `transit_access_sector` + druktemeting (0.40·transit+0.25·boardings+0.25·telraam+0.10·micro) — **not built** |
 | `zoning` | Ch4 "may I open here" | Gewestplan + RUP DSI — **not on disk yet** |
-| `demand_proxies` | score_locations | kotzones + bloklocaties + POI weighting — **not built** |
 | `permit_rules` | permit_checklist_for | curated NACE × attributes → permit/url/cost/lead_time — **not curated yet** |
 | `subsidies` | subsidies_for | curated; `status: active\|ended_2025` — **not curated yet** |
 | `sector_attributes` | Ch1 questions + Ch4 branching | the "company topology" — **not built** |

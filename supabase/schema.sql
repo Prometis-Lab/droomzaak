@@ -242,3 +242,23 @@ CREATE TABLE IF NOT EXISTS droomzaak.kbo_geocode (
     is_imputed           BOOLEAN
 );
 CREATE INDEX IF NOT EXISTS kbo_geocode_nis9_idx ON droomzaak.kbo_geocode (nis9_code);
+
+-- Q3 footfall composite (0.65·transit + 0.25·cyclist + 0.10·bike_parking), normalized 0–1/sector.
+CREATE TABLE IF NOT EXISTS droomzaak.footfall_sector (
+    nis9_code             TEXT,
+    wijknr                BIGINT,
+    transit_departures    DOUBLE PRECISION,
+    cyclist_count         DOUBLE PRECISION,
+    bike_parking_capacity DOUBLE PRECISION,
+    footfall_score        DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS footfall_sector_nis9_idx ON droomzaak.footfall_sector (nis9_code);
+
+-- Q3 demand-side: student study density (UGent bloklocaties) per sector.
+CREATE TABLE IF NOT EXISTS droomzaak.demand_proxies_sector (
+    nis9_code             TEXT,
+    wijknr                BIGINT,
+    n_blok_locations      BIGINT,
+    study_seats           DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS demand_proxies_sector_nis9_idx ON droomzaak.demand_proxies_sector (nis9_code);
