@@ -199,6 +199,14 @@ body {
 .chat-msg.user { align-self: flex-end; background: var(--terracotta); color: #fff; }
 .chat-msg.agent { align-self: flex-start; background: var(--paper-2); color: var(--ink); }
 .chat-msg.thinking { font-style: italic; color: var(--ink-soft); }
+/* Markdown inside an agent bubble: tight margins so it reads as one message */
+.chat-msg.agent p { margin: 0 0 8px; }
+.chat-msg.agent p:last-child { margin-bottom: 0; }
+.chat-msg.agent .chat-md-list { margin: 4px 0 8px; padding-left: 20px; }
+.chat-msg.agent .chat-md-list:last-child { margin-bottom: 0; }
+.chat-msg.agent .chat-md-list li { margin: 2px 0; }
+.chat-msg.agent a { color: var(--terracotta); }
+.chat-msg.agent strong { font-weight: 600; }
 .chat-input { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .chat-input textarea {
   flex: 1; resize: none; border: 1px solid var(--line); border-radius: 10px;
