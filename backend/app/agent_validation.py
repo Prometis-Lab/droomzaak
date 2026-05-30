@@ -92,6 +92,15 @@ def validate_agent_action(
                 "hint": "Target a dataset loaded this turn, a persistent context layer, "
                 "or a transient layer (osm-/places-/score-locations-/…).",
             }
+        if atype == "set_layer_filter":
+            f = action.get("filter")
+            if f is not None and not isinstance(f, list):
+                return None, {
+                    "error": "set_layer_filter: 'filter' must be a JSON array (MapLibre filter expression) or null",
+                    "hint": "Pass null to clear the filter, or a MapLibre expression array to apply one.",
+                }
+            # Normalize: absent key → explicit null so the frontend can clear reliably.
+            return {**action, "filter": f}, None
         if atype == "set_layer_heatmap" and not action.get("field"):
             return None, {"error": "set_layer_heatmap requires a numeric 'field'"}
         if atype == "set_layer_heatmap":

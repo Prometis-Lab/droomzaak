@@ -83,29 +83,41 @@ def stub_gateway(monkeypatch):
 
 
 async def test_peer_benchmarks_summary(stub_gateway):
+    # New handler makes THREE sequential gateway calls: VAT, starters, bankruptcies.
+    # Push three canned responses in order.
+    stub_gateway.append([{"active_count": 13, "vat_starts": 2, "vat_stops": 1,
+                          "scope": "gent_arrondissement"}])          # SQL-1 VAT
     stub_gateway.append([
-        {"year": 2024, "openings": 6, "closings": 2, "bankruptcies": 4, "active_count": 13, "btw_evolution": 1.18},
-        {"year": 2021, "openings": 5, "closings": 3, "bankruptcies": 6, "active_count": 10, "btw_evolution": 1.04},
-    ])
+        {"year": 2024, "n_first_start": 6, "n_restart": 1, "n_stop": -2, "n_eop": 130},
+        {"year": 2021, "n_first_start": 5, "n_restart": 1, "n_stop": -3, "n_eop": 100},
+    ])                                                                 # SQL-2 starters
+    stub_gateway.append([{"year": 2024, "n_bankruptcies": 4}])        # SQL-3 bankruptcies
     out = await droomzaak_tools.HANDLERS["peer_benchmarks_statbel"](
         {"nace_code": "56.101", "refnis": "44021"}, _run())
     assert out["summary"]["active_count_latest"] == 13
     assert out["summary"]["growth_3y_pct"] == 30.0
+    assert out["summary"]["starters_recent"] == 7   # 6 + 1
+    assert out["summary"]["stops_recent"] == 2
+    assert out["summary"]["bankruptcies_latest"] == 4
+    # rows dict shape: vat / starters_by_year / bankruptcies_by_year
+    assert "vat" in out["rows"] and "starters_by_year" in out["rows"]
 
 
 async def test_permit_checklist_excludes_alcohol(stub_gateway):
-    stub_gateway.append([
-        {"rule_id": "horeca_attest", "attribute_filter": {}, "permit_name": "Horeca-attest",
-         "authority": "Stad Gent", "deep_link": "x", "estimated_cost_eur": 0,
-         "estimated_processing_days": 30, "notes_nl": ""},
-        {"rule_id": "drank", "attribute_filter": {"serves_alcohol": True}, "permit_name": "Drankvergunning",
-         "authority": "Stad Gent", "deep_link": "x", "estimated_cost_eur": 0,
-         "estimated_processing_days": 21, "notes_nl": ""},
-    ])
+    # permit_checklist_for is now a YAML-config tool — it does NOT call the gateway.
+    # stub_gateway is unused here; the test verifies YAML-based behavior.
+    # YAML has drankvergunning_gegist with attribute_filter {serves_alcohol: gegiste}
+    # and drankvergunning_sterk with {serves_alcohol: sterke}.
+    # An empty attributes dict should exclude both alcohol rules.
     out = await droomzaak_tools.HANDLERS["permit_checklist_for"](
-        {"nace_code": "56.101", "attributes": {"serves_alcohol": False}}, _run())
+        {"nace_code": "56.101", "attributes": {}}, _run())
     names = [c["permit_name"] for c in out["checklist"]]
-    assert "Horeca-attest" in names and "Drankvergunning" not in names
+    # Base rules (no attribute filter) must appear
+    assert "Inschrijving KBO + BTW-activering" in names
+    assert "Horeca-attest Stad Gent" in names
+    # Alcohol rules must NOT appear (attribute_filter not satisfied)
+    assert "Drankvergunning gegiste dranken" not in names
+    assert "Sterkedrankvergunning" not in names
 
 
 async def test_legal_form_bv_with_partners():

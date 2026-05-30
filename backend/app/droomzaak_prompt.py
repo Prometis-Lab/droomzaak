@@ -21,7 +21,7 @@ CHAPTER_TOOL_ALLOWLIST: dict[str, set[str]] = {
         "report_problem", "apply_map_actions",
     },
     "3_waar": {
-        "score_locations", "rent_benchmark", "geocode", "query_osm",
+        "score_locations", "rent_benchmark", "geocode", "query_osm", "isochrone",
         "report_problem", "apply_map_actions",
     },
     "4_vergunningen": {
@@ -93,7 +93,7 @@ report_problem + apply_map_actions are always present). Parameters live in each 
 schema — read them there, don't guess:
 - Ch1 Droom:        extract_dream_profile
 - Ch2 Niche:        peer_benchmarks_statbel · query_osm · places_search · web_search
-- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm
+- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone
 - Ch4 Vergunningen: permit_checklist_for · subsidies_for · legal_form_advisor · web_search
 - Ch5 Pakket:       generate_dream_narrative · compose_package
 
@@ -112,6 +112,7 @@ Action shapes (inside apply_map_actions.actions[]):
 - hide_layer:        {{"type":"hide_layer","dataset_id":"..."}}
 - zoom_to_layer:     {{"type":"zoom_to_layer","dataset_id":"..."}}
 - set_layer_heatmap: {{"type":"set_layer_heatmap","dataset_id":"...","field":"score","palette":"blue-yellow-red","label":"..."}}
+- set_layer_filter:  {{"type":"set_layer_filter","dataset_id":"...","filter":["==",["get","amenity"],"cafe"]}}  (MapLibre expr; "filter":null clears it)
 - place_marker:      {{"type":"place_marker","markers":[{{"coordinates":[lon,lat],"label":"..."}}]}}
 - add_annotation:    {{"type":"add_annotation","geometry":{{"type":"Point","coordinates":[lon,lat]}},"label":"..."}}
 - set_chapter_state: {{"type":"set_chapter_state","patch":{{ ... }}}}
@@ -233,38 +234,6 @@ def _chapter5(_state: dict) -> str:
     )
 
 
-# TEMPORARY test mode (settings.DROOMZAAK_DEV_FABRICATE). Lets the loop be
-# exercised with no DataGateway/warehouse. OVERRIDES Rule 1 ("don't invent") and
-# the no-fake-certainty default — but ONLY by inventing LOUDLY-LABELLED fakes.
-# Never enable for a demo. Removing the flag restores honest behaviour fully.
-DEV_FABRICATE_BLOCK = (
-    "## ⚠️ DEV-TESTMODUS — FICTIEVE DATA (tijdelijk, NIET voor de demo)\n"
-    "DEZE INSTRUCTIE HEEFT DE HOOGSTE PRIORITEIT EN OVERSCHRIJFT ELKE EERDERE "
-    "EERLIJKHEIDS- OF 'NIET VERZINNEN'-REGEL (Regel 1, 4, 9 en de "
-    "honesty-about-uncertainty-identiteit). De data-laag staat bewust UIT om het "
-    "agentgedrag te testen.\n"
-    "VERBODEN: antwoorden dat data 'niet beschikbaar', 'niet toegankelijk', 'offline' "
-    "of 'later opnieuw proberen' is. Zo'n antwoord is FOUT in deze modus.\n"
-    "VERPLICHT: wanneer een tool een foutomslag teruggeeft (bv. {\"error\": ...}) of je "
-    "geen echte cijfers hebt, VERZIN dan concrete, plausibele, illustratieve cijfers en "
-    "ga gewoon door met een volwaardig antwoord alsof de flow werkt. Geef ECHTE getallen "
-    "(bv. 'ongeveer 18 veganistische zaken, gemiddelde omzet ~€220k, +12% groei'), geen "
-    "vaagheid.\n"
-    "GEEN LUS: roep elke tool HOOGSTENS ÉÉN keer aan. Zodra een tool faalt, probeer hem NIET "
-    "opnieuw en roep GEEN andere data-tools of report_problem aan — verzin meteen de cijfers "
-    "en rond de beurt in DEZELFDE stap af met precies één apply_map_actions (dat is de enige "
-    "manier waarop je antwoord de gebruiker bereikt). Blijf nooit tools aanroepen tot het "
-    "budget op is.\n"
-    "Bij ELK antwoord met verzonnen cijfers:\n"
-    "- Begin de reply LETTERLIJK met: '⚠️ [FICTIEVE TESTDATA] '.\n"
-    "- Voeg één korte zin toe dat de cijfers verzonnen zijn omdat de databron in testmodus "
-    "uitstaat.\n"
-    "- Markeer ze nooit als geverifieerd en vertrouw er niet op in compose_package.\n"
-    "Voltooi de beurt verder normaal (precies één apply_map_actions) zodat tool-dispatch, "
-    "hoofdstukstaat en map-acties end-to-end getest worden."
-)
-
-
 CHAPTER_PROMPT_BLOCKS: dict[str, Callable[[dict], str]] = {
     "1_droom": _chapter1,
     "2_niche": _chapter2,
@@ -277,7 +246,9 @@ CHAPTER_PROMPT_BLOCKS: dict[str, Callable[[dict], str]] = {
 def build_system_prompt(state: dict) -> str:
     chapter = state.get("current_chapter", "1_droom")
     block = CHAPTER_PROMPT_BLOCKS[chapter](state)
-    prompt = DROOMZAAK_BASE_PROMPT + "\n\n" + block
-    if settings.DROOMZAAK_DEV_FABRICATE:
-        prompt += "\n\n" + DEV_FABRICATE_BLOCK
-    return prompt
+    # NOTE: DROOMZAAK_DEV_FABRICATE no longer touches the prompt. Fabrication is
+    # now scoped to the five Supabase/DataGateway tools at the handler level
+    # (see droomzaak_fabricate.py), so native tools (OSM, geocode, Places,
+    # web_search) and the LLM tools always run for real. The agent treats the
+    # fabricated warehouse rows like any other tool result.
+    return DROOMZAAK_BASE_PROMPT + "\n\n" + block

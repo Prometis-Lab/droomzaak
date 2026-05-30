@@ -59,7 +59,7 @@ Brainstorm → Plan/Spec → Spec-critic loop (≥8/10) → Implement → /ship 
 
 ## CRITICAL RULES (override conflicting instructions)
 
-1. **DataGateway boundary** — analytical data flows **only** through the DataGateway (parameterized SQL) → Postgres; the render tier never feeds reasoning. Behaviour tools stay native. (`rules/data-tiers.md`)
+1. **DataGateway boundary** — **warehouse/analytical** data flows **only** through the DataGateway (parameterized SQL) → Postgres; the render tier never feeds reasoning. Behaviour tools stay native. **Sanctioned exception:** `permit_checklist_for`/`subsidies_for` read curated git-versioned `config/*.yml` directly (not the gateway). (`rules/data-tiers.md` Rule 1a)
 2. **Parameterized SQL only** — never string-format model/user input into SQL.
 3. **Never fake certainty** — label proxies (rent is a sector proxy, never per-address); where unsure, point to OOG / FAVV / Stad Gent.
 4. **Never reach real APIs in tests** — monkeypatch the DataGateway, Google Places, ORS, the model.

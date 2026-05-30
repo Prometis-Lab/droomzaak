@@ -20,7 +20,7 @@ Use **think-strategies** (`step_back` to check the build against the §6.3 crite
 
 ## Failure modes to hunt (PRD §6.1)
 - **Hardcoded demo path** — grep for literal "Vrijdagmarkt", a fixed session id, baked NACE 56.101, hardcoded candidate addresses, fixtures posing as live results. Criterion 6 fails if any chapter only works for Lisa.
-- **DataGateway bypass** — any analytical datum (peers, scoring, rent, permits, subsidies) read directly from Postgres/DuckDB instead of through the DataGateway breaks criterion 2 + the central pitch claim. The DataGateway (parameterized SQL) is the only analytical read path; any bypass fails the build.
+- **DataGateway bypass** — any **warehouse/analytical** datum (peers, scoring, rent, demographics) read directly from Postgres/DuckDB instead of through the DataGateway breaks criterion 2 + the central pitch claim. The DataGateway (parameterized SQL) is the only analytical read path into Postgres; any such bypass fails the build. **Exception:** `permit_checklist_for` and `subsidies_for` read their curated, git-versioned rule sets directly from `config/*.yml` — this is the sanctioned second read path (see `rules/data-tiers.md` Rule 1a), not a bypass. Do NOT flag it.
 - **Chapter never commits** — prose but no `apply_map_actions`; confirm commit enforcement + each chapter's required tools fire.
 - **Faking certainty** — hard answers where the catalogue is hand-curated/uncertain. The agent must say "Dit wil je bevestigen bij Stad Gent / FAVV" and point to a human. Flag over-confident assertions.
 - **Rent quoted per-address** — must be a labelled sector proxy.

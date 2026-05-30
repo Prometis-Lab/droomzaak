@@ -54,6 +54,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [datasets, setDatasets] = useState<Record<string, TransientDataset>>({});
   const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [filters, setFilters] = useState<Record<string, unknown[] | null>>({});
   const [busy, setBusy] = useState(false);
 
   // ── Layout state (persisted) ──────────────────────────────────
@@ -96,6 +97,7 @@ export default function App() {
     setMessages([]);
     setDatasets({});
     setMarkers([]);
+    setFilters({});
   }
 
   async function handleSend(text: string) {
@@ -107,12 +109,20 @@ export default function App() {
       if (res.chapter_state) setChapterState(res.chapter_state);
       if (res.datasets) setDatasets((d) => ({ ...d, ...res.datasets }));
       const newMarkers: MapMarker[] = [];
+      const newFilters: Record<string, unknown[] | null> = {};
       for (const a of res.actions || []) {
         if (a.type === "place_marker" && Array.isArray(a.markers)) {
           for (const mk of a.markers) newMarkers.push({ coordinates: mk.coordinates, label: mk.label });
         }
+        if (a.type === "set_layer_filter" && typeof a.dataset_id === "string") {
+          // null clears the filter; any array applies it.
+          newFilters[a.dataset_id] = Array.isArray(a.filter) ? (a.filter as unknown[]) : null;
+        }
       }
       if (newMarkers.length) setMarkers(newMarkers);
+      if (Object.keys(newFilters).length) {
+        setFilters((prev) => ({ ...prev, ...newFilters }));
+      }
     } catch {
       setMessages((m) => [...m, { role: "agent", text: "Er ging iets mis. Probeer het opnieuw." }]);
     } finally {
@@ -201,7 +211,7 @@ export default function App() {
     >
       <ChapterRail current={current} />
 
-      <MapCanvas datasets={datasets} markers={markers} />
+      <MapCanvas datasets={datasets} markers={markers} filters={filters} />
 
       {panelCollapsed ? (
         collapsedTab

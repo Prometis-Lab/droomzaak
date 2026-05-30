@@ -94,9 +94,47 @@ SPEC_WEB_SEARCH = {
     },
 }
 
+SPEC_ISOCHRONE = {
+    "name": "isochrone",
+    "description": "Compute a reachability polygon (isochrone) around a point in Ghent via "
+    "OpenRouteService. Returns a transient GeoJSON layer the model can show_layer. "
+    "Use in Chapter 3 to visualise a candidate location's walking/cycling reach.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "array",
+                "items": {"type": "number"},
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "[longitude, latitude] of the origin point.",
+            },
+            "minutes": {
+                "type": "number",
+                "default": 10,
+                "description": "Travel-time budget in minutes (converted to seconds for ORS).",
+            },
+            "profile": {
+                "type": "string",
+                "enum": ["foot-walking", "cycling-regular", "driving-car"],
+                "default": "foot-walking",
+                "description": "ORS routing profile.",
+            },
+        },
+        "required": ["location"],
+    },
+}
+
 
 def tool_specs() -> list[dict]:
-    return [SPEC_APPLY_MAP_ACTIONS, SPEC_REPORT_PROBLEM, SPEC_QUERY_OSM, SPEC_GEOCODE, SPEC_WEB_SEARCH]
+    return [
+        SPEC_APPLY_MAP_ACTIONS,
+        SPEC_REPORT_PROBLEM,
+        SPEC_QUERY_OSM,
+        SPEC_GEOCODE,
+        SPEC_WEB_SEARCH,
+        SPEC_ISOCHRONE,
+    ]
 
 
 # ── handlers ─────────────────────────────────────────────────────────────
@@ -134,10 +172,21 @@ async def handle_query_osm(args: dict, run: AgentRun) -> dict:
         for t in tags
     )
     bbox = f"{minlat},{minlon},{maxlat},{maxlon}"
-    q = f"[out:json][timeout:25];(node{selectors}({bbox}););out center {limit};"
+    # Match map-pilot-v2's working request shape: raw QL body as text/plain with a
+    # User-Agent. Overpass returns 406 to form-encoded / no-User-Agent clients.
+    # Union node+way+relation so POIs mapped as buildings (ways) are not missed.
+    selector_union = "".join(f"{et}{selectors}({bbox});" for et in ("node", "way", "relation"))
+    q = f"[out:json][timeout:25];({selector_union});out center {limit};"
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(settings.OVERPASS_API_URL, data={"data": q})
+            resp = await client.post(
+                settings.OVERPASS_API_URL,
+                content=q.encode("utf-8"),
+                headers={
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "User-Agent": "droomzaak/0.1 (Hackers & Ravers hackathon)",
+                },
+            )
             resp.raise_for_status()
             elements = resp.json().get("elements", [])
     except Exception as exc:
@@ -200,10 +249,69 @@ async def handle_web_search(args: dict, run: AgentRun) -> dict:
                          "snippet": r.get("content", "")[:300]} for r in data.get("results", [])]}
 
 
+async def handle_isochrone(args: dict, run: AgentRun) -> dict:
+    location = args.get("location")
+    if not location or len(location) != 2:
+        return {"error": "location must be [lon, lat]", "hint": "Geef een geldige [lon, lat] op."}
+
+    minutes = float(args.get("minutes", 10))
+    profile = args.get("profile", "foot-walking")
+    seconds = int(minutes * 60)
+
+    if not settings.OPENROUTESERVICE_API_KEY:
+        return {
+            "error": "isochrone niet beschikbaar (geen OPENROUTESERVICE_API_KEY)",
+            "hint": "Voeg OPENROUTESERVICE_API_KEY toe aan .env.demo en herstart de server.",
+        }
+
+    ors_url = f"https://api.openrouteservice.org/v2/isochrones/{profile}"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                ors_url,
+                headers={
+                    "Authorization": settings.OPENROUTESERVICE_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={"locations": [location], "range": [seconds]},
+            )
+            resp.raise_for_status()
+            geojson = resp.json()
+    except Exception as exc:
+        return {
+            "error": f"isochrone opvragen mislukt: {exc}",
+            "hint": "Controleer of OPENROUTESERVICE_API_KEY geldig is en probeer opnieuw.",
+        }
+
+    profile_labels = {
+        "foot-walking": "wandel",
+        "cycling-regular": "fiets",
+        "driving-car": "auto",
+    }
+    label = profile_labels.get(profile, profile)
+    summary = f"{int(minutes)}-min {label}bereik"
+
+    dataset_id = f"isochrone-{profile}-{int(minutes)}min-{_hash(location)}"
+    run.datasets[dataset_id] = {
+        "dataset_id": dataset_id,
+        "feature_count": len((geojson or {}).get("features", [])),
+        "geojson": geojson,
+    }
+    run.referenced_dataset_ids.add(dataset_id)
+
+    return {
+        "dataset_id": dataset_id,
+        "minutes": minutes,
+        "profile": profile,
+        "summary": summary,
+    }
+
+
 HANDLERS = {
     "apply_map_actions": handle_apply_map_actions,
     "report_problem": handle_report_problem,
     "query_osm": handle_query_osm,
     "geocode": handle_geocode,
     "web_search": handle_web_search,
+    "isochrone": handle_isochrone,
 }

@@ -47,12 +47,65 @@ export interface MapMarker {
   label?: string;
 }
 
+// MapLibre filter expression — null means "clear the filter".
+export type FilterExpr = unknown[] | null;
+
 type Props = {
   datasets: Record<string, TransientDataset>;
   markers: MapMarker[];
+  filters?: Record<string, FilterExpr>;
 };
 
-export function MapCanvas({ datasets, markers }: Props) {
+/** Determine whether a GeoJSON FeatureCollection contains polygon geometry. */
+function hasPolygonGeometry(geojson: { features: Array<{ geometry: { type: string } }> }): boolean {
+  return geojson.features.some(
+    (f) => f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"
+  );
+}
+
+/** Collect all coordinate pairs from any geometry type for bounds extension. */
+function extendBoundsFromGeometry(
+  bounds: maplibregl.LngLatBounds,
+  geometry: { type: string; coordinates: unknown }
+): boolean {
+  type LngLat = [number, number];
+
+  function addPair(pair: unknown) {
+    if (Array.isArray(pair) && pair.length >= 2 && typeof pair[0] === "number" && typeof pair[1] === "number") {
+      bounds.extend(pair as LngLat);
+    }
+  }
+
+  function walkRing(ring: unknown[]) {
+    for (const pt of ring) addPair(pt);
+  }
+
+  switch (geometry.type) {
+    case "Point":
+      addPair(geometry.coordinates);
+      return true;
+    case "MultiPoint":
+      for (const pt of geometry.coordinates as unknown[]) addPair(pt);
+      return true;
+    case "LineString":
+      walkRing(geometry.coordinates as unknown[]);
+      return true;
+    case "MultiLineString":
+      for (const ring of geometry.coordinates as unknown[][]) walkRing(ring);
+      return true;
+    case "Polygon":
+      // outer ring only (sufficient for bounds)
+      walkRing((geometry.coordinates as unknown[][])[0] ?? []);
+      return true;
+    case "MultiPolygon":
+      for (const poly of geometry.coordinates as unknown[][][]) walkRing(poly[0] ?? []);
+      return true;
+    default:
+      return false;
+  }
+}
+
+export function MapCanvas({ datasets, markers, filters = {} }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -83,7 +136,7 @@ export function MapCanvas({ datasets, markers }: Props) {
     };
   }, []);
 
-  // Render transient point datasets.
+  // Render transient datasets — points as circle, polygons as fill+line.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -94,29 +147,51 @@ export function MapCanvas({ datasets, markers }: Props) {
         if (!ds.geojson) continue;
         const srcId = `ds-${ds.dataset_id}`;
         const layerId = `${srcId}-layer`;
+        const isPolygon = hasPolygonGeometry(ds.geojson as { features: Array<{ geometry: { type: string } }> });
         const existing = map.getSource(srcId) as maplibregl.GeoJSONSource | undefined;
         if (existing) {
           existing.setData(ds.geojson as never);
         } else {
           map.addSource(srcId, { type: "geojson", data: ds.geojson as never });
-          map.addLayer({
-            id: layerId,
-            type: "circle",
-            source: srcId,
-            paint: {
-              "circle-radius": 6,
-              "circle-color": "#c0613a",
-              "circle-stroke-width": 1.5,
-              "circle-stroke-color": "#fff",
-            },
-          });
-        }
-        for (const f of ds.geojson.features) {
-          const g = f.geometry;
-          if (g.type === "Point") {
-            bounds.extend(g.coordinates as [number, number]);
-            any = true;
+          if (isPolygon) {
+            // Fill layer — semi-transparent terracotta.
+            map.addLayer({
+              id: layerId,
+              type: "fill",
+              source: srcId,
+              paint: {
+                "fill-color": "#c0613a",
+                "fill-opacity": 0.18,
+              },
+            });
+            // Outline layer — same terracotta, solid.
+            map.addLayer({
+              id: `${layerId}-outline`,
+              type: "line",
+              source: srcId,
+              paint: {
+                "line-color": "#c0613a",
+                "line-width": 1.8,
+                "line-opacity": 0.7,
+              },
+            });
+          } else {
+            map.addLayer({
+              id: layerId,
+              type: "circle",
+              source: srcId,
+              paint: {
+                "circle-radius": 6,
+                "circle-color": "#c0613a",
+                "circle-stroke-width": 1.5,
+                "circle-stroke-color": "#fff",
+              },
+            });
           }
+        }
+        // Extend bounds for all geometry types.
+        for (const f of (ds.geojson as { features: Array<{ geometry: { type: string; coordinates: unknown } }> }).features) {
+          if (extendBoundsFromGeometry(bounds, f.geometry)) any = true;
         }
       }
       if (any) map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 600 });
@@ -124,6 +199,27 @@ export function MapCanvas({ datasets, markers }: Props) {
     if (loadedRef.current) apply();
     else map.once("load", apply);
   }, [datasets]);
+
+  // Apply layer filters from the agent's set_layer_filter actions.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      for (const [datasetId, filterExpr] of Object.entries(filters)) {
+        const layerId = `ds-${datasetId}-layer`;
+        if (!map.getLayer(layerId)) continue;
+        // null = clear the filter; any array = apply it.
+        map.setFilter(layerId, filterExpr as maplibregl.FilterSpecification | null | undefined);
+        // Also apply to the outline layer if it exists.
+        const outlineId = `${layerId}-outline`;
+        if (map.getLayer(outlineId)) {
+          map.setFilter(outlineId, filterExpr as maplibregl.FilterSpecification | null | undefined);
+        }
+      }
+    };
+    if (loadedRef.current) apply();
+    else map.once("load", apply);
+  }, [filters]);
 
   // Render markers.
   useEffect(() => {
