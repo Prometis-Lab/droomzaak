@@ -2,7 +2,7 @@
 
 Every analytical datum the agent reasons over flows through `gateway.query(...)`
 (parameterized SQL only). This is the architectural pitch: one chokepoint, one
-audit log, visible in the debug overlay. Behaviour tools (OSM, Places, geocode,
+audit log, visible in the debug overlay. Behaviour tools (OSM, geocode,
 web_search) do NOT come through here.
 
 The audit log is in-process and exposed so a per-turn debug stage can show every

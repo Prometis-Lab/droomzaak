@@ -13,7 +13,7 @@ Invoke the **`security-scan`** skill, which runs `.claude/hooks/security-gate.sh
 ## Then: the Droomzaak checklist (data as much as code)
 - **Secrets:** no keys/tokens in code or committed files; `.env*` not committed (only `.env.demo.example`); no secret in a URL/query string or log line.
 - **SQL / DataGateway boundary:** every analytical query is **parameterized**; no string-formatted model/user input; analytical reads go through the DataGateway, not direct Postgres/DuckDB (`rules/data-tiers.md`). The DataGateway connection is read-only-scoped. A reviewer fails the build if analytical reads bypass the DataGateway.
-- **SSRF / external fetch:** OSM Overpass, Google Places, ORS, Street View, Tavily `web_search` — URLs are constructed from validated params (bbox/place_id/address), not raw model output; no fetching of attacker-controlled URLs; timeouts + caps (Places ≤5–10/session).
+- **SSRF / external fetch:** OSM Overpass, ORS, Street View, Tavily `web_search` — URLs are constructed from validated params (bbox/address), not raw model output; no fetching of attacker-controlled URLs; timeouts + caps.
 - **Injection / RCE:** no `eval`/`exec` on model output; no unsafe deserialization (pickle/yaml.load); permit/subsidy YAML loaded with `safe_load`.
 - **Web:** FastAPI CORS not `*` in prod; input validation on routes; the package renderer escapes user/LLM text (no unsanitized HTML injection); the shareable `/pakket/<id>` URL isn't a PII-in-URL leak.
 - **Data licence / PII:** Belfirst is proprietary → only aggregates leave the warehouse on the founder path (per-company rows only in an operator surface); no facial-image or personal-data scraping.

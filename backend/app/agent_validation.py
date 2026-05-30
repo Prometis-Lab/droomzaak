@@ -14,9 +14,9 @@ from backend.app import droomzaak_validation
 
 PERSISTENT_CONTEXT_LAYER_IDS = {"stadswijken-gent", "statistische-sectoren-gent"}
 
-# Transient layer id prefixes producible by tools this turn (places-/score-locations-
-# are the Droomzaak additions).
-TRANSIENT_PREFIXES = {"osm-", "iso-", "rt-", "sub-", "score-", "score-locations-", "places-"}
+# Transient layer id prefixes producible by tools this turn (score-locations-
+# is the Droomzaak addition).
+TRANSIENT_PREFIXES = {"osm-", "iso-", "rt-", "sub-", "score-", "score-locations-"}
 
 _TARGET_ACTION_TYPES = {
     "show_layer", "hide_layer", "select_dataset", "zoom_to_layer", "set_layer_filter",
@@ -90,7 +90,7 @@ def validate_agent_action(
             return None, {
                 "error": f"{atype}: unknown or missing dataset_id '{ds}'",
                 "hint": "Target a dataset loaded this turn, a persistent context layer, "
-                "or a transient layer (osm-/places-/score-locations-/…).",
+                "or a transient layer (osm-/score-locations-/…).",
             }
         if atype == "set_layer_filter":
             f = action.get("filter")

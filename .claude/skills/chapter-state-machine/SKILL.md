@@ -14,7 +14,7 @@ Net-new for Droomzaak (PRD §3.3). A **thin** state machine wrapping the reused 
 | Chapter | State accumulates | Required tools | Exit condition |
 |---|---|---|---|
 | 1 *Droom* | `dream_profile` | `extract_dream_profile`, `apply_map_actions` | `dream_profile.sector` set |
-| 2 *Niche* | + `niche_signals` | `peer_benchmarks_statbel`, `query_osm`, `places_search`, `search_datasets`, `web_search` | user clicks *Vind je plek* |
+| 2 *Niche* | + `niche_signals` | `peer_benchmarks_statbel`, `query_osm`, `search_datasets`, `web_search` | user clicks *Vind je plek* |
 | 3 *Waar* | + `candidate_locations[]` | `score_locations`, `nearest_features`, `spatial_count`, `rent_benchmark` | user picks a location |
 | 4 *Vergunningen & geld* | + `permit_checklist[]`, `subsidies[]`, `legal_form` | `permit_checklist_for`, `subsidies_for`, `legal_form_advisor` | all items rendered |
 | 5 *Pakket* | render-only | `generate_dream_narrative`, `compose_package` | PDF / link delivered |

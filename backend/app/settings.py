@@ -65,7 +65,6 @@ DROOMZAAK_TRACE_TO_FILE = os.environ.get("DROOMZAAK_TRACE_TO_FILE", "1").strip()
 DROOMZAAK_TRACE_DIR = os.environ.get("DROOMZAAK_TRACE_DIR", "data/traces")
 
 # ── Live behaviour tools (not routed through the DataGateway) ───────────
-GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY", "")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 OVERPASS_API_URL = os.environ.get("OVERPASS_API_URL", "https://overpass-api.de/api/interpreter")

@@ -23,7 +23,7 @@ Stand up Postgres → run a one-shot dump over local DuckDB + Parquet → load t
 - **CRS:** Statbel sectors Lambert 2008 (EPSG:3812), accidents Lambert 72 (EPSG:31370) → reproject to WGS84 with `pyproj`, `always_xy=True`.
 - **Encoding:** Statbel ZIPs are pipe-delimited; UTF-8-sig then CP1252.
 - **Geo-join:** centroid-in-polygon via Shapely `STRtree.query` + `.covers()`; fill 0 for unmatched (no NULL fields downstream). Print the match rate.
-- **KBO caveat:** registered seats ≠ trading addresses → triangulate competitor density with OSM + Google Places, frame the disagreement honestly.
+- **KBO caveat:** registered seats ≠ trading addresses → triangulate competitor density with OSM, frame the disagreement honestly.
 
 ## Corrections (data-shortlist overrides PRD)
 - **Peer financials = Belfirst** (on disk, proprietary → aggregates only; geocode address-strings via `prometis_toolkit`), not Statbel. CBSO stays deferred to V2.

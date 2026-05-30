@@ -1,9 +1,9 @@
 """Droomzaak system prompt: a static base + one per-chapter block.
 
-Kept faithful to the build-doc prompt skeleton. Two corrections from the
-data-shortlist are applied: `places_popular_times` does NOT exist (removed from
-every chapter surface) and `web_search` (Tavily, official-domain-biased) is a
-real fallback tool in chapters 2 & 4.
+Kept faithful to the build-doc prompt skeleton. Two corrections applied:
+`places_search` (Google Places) is removed — no API key; competition/footfall
+uses OSM amenity density + the footfall_sector composite instead. `web_search`
+(Tavily, official-domain-biased) is a real fallback tool in chapters 2 & 4.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from backend.app import settings
 CHAPTER_TOOL_ALLOWLIST: dict[str, set[str]] = {
     "1_droom": {"extract_dream_profile", "report_problem", "apply_map_actions"},
     "2_niche": {
-        "peer_benchmarks_statbel", "query_osm", "places_search", "web_search",
+        "competition_density", "peer_benchmarks_statbel", "query_osm", "web_search",
         "describe_warehouse", "query_warehouse",
         "report_problem", "apply_map_actions",
     },
@@ -108,13 +108,13 @@ Tool surface (chapter-gated — you only RECEIVE the tools for your current chap
 report_problem + apply_map_actions are always present). Parameters live in each tool's
 schema — read them there, don't guess:
 - Ch1 Droom:        extract_dream_profile
-- Ch2 Niche:        peer_benchmarks_statbel · query_osm · places_search · web_search · describe_warehouse · query_warehouse
-- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone · clip_points_to_area (clip OSM/Places punten tot een isochrone-polygoon) · describe_warehouse · query_warehouse
+- Ch2 Niche:        peer_benchmarks_statbel · query_osm · web_search · describe_warehouse · query_warehouse
+- Ch3 Waar:         score_locations · rent_benchmark · geocode · query_osm · isochrone · clip_points_to_area (clip OSM punten tot een isochrone-polygoon) · describe_warehouse · query_warehouse
 - Ch4 Vergunningen: permit_checklist_for · subsidies_for · legal_form_advisor · web_search · describe_warehouse · query_warehouse
 - Ch5 Pakket:       generate_dream_narrative · compose_package
 
 Routing heuristics (the non-obvious calls):
-- Triangulate the niche: KBO peer counts, OSM amenity density, and Places results
+- Triangulate the niche: KBO peer counts and OSM amenity density
   measure different things — compare them and name big gaps, don't average them.
 - Rent and footfall are SECTOR proxies, never a per-address quote. Say "rond deze buurt",
   never "dit pand kost".
@@ -209,17 +209,28 @@ def _chapter2(state: dict) -> str:
         f"(NACE {_g(state,'dream_profile','nace_code')}), schaal "
         f"{_g(state,'dream_profile','scale')}, buurtanker "
         f"{_g(state,'dream_profile','neighbourhood_anchor')}.\n"
-        "Introduceer de niche: hoeveel anderen hebben dit al gedurfd in Gent, hoe "
-        "verloopt het, wat zegt de trend. Verplichte calls (batch parallel):\n"
-        f"1. peer_benchmarks_statbel(nace_code='{_g(state,'dream_profile','nace_code')}', refnis='44021')\n"
-        "2. query_osm met de juiste tags voor de niche\n"
-        "3. places_search met query + bbox=Gent\n"
-        "Triangulering: vergelijk KBO-tellingen met OSM en Places; vermeld grote "
-        "verschillen. Dieper graven (peer-omzet, overleving, faillissementen per jaar)? "
+        "Laat de niche ZIEN, niet alleen vertellen: hoeveel anderen hebben dit al gedurfd "
+        "in Gent, waar zitten ze geconcentreerd, en waar ligt nog ruimte. "
+        "Verplichte calls (batch parallel):\n"
+        f"1. competition_density(nace_code='{_g(state,'dream_profile','nace_code')}') — telt "
+        "bestaande zaken in deze NACE per Gentse sector → een dichtheids-heatmap.\n"
+        f"2. peer_benchmarks_statbel(nace_code='{_g(state,'dream_profile','nace_code')}', refnis='44021')\n"
+        "Optioneel: query_osm met de juiste tags om een paar herkenbare zaken als punten "
+        "bovenop te tonen (triangulering: vergelijk KBO-tellingen met OSM; vermeld grote "
+        "verschillen). Dieper graven (peer-omzet, overleving, faillissementen per jaar)? "
         "describe_warehouse → query_warehouse op business_financials / "
-        "business_registry_history / peer_bankruptcies (Belfirst: alleen geaggregeerd). "
-        "Reply: één korte alinea + 2-4 kerncijfers. Toon de niche-punten "
-        "als laag (osm-/places-). Hoofdstuk-uitgang: de UI-knop 'Vind je plek'; OF de "
+        "business_registry_history / peer_bankruptcies (Belfirst: alleen geaggregeerd).\n"
+        "Map (VERPLICHT als competition_density data_available=true): toon de "
+        "competition-density-laag MET set_layer_heatmap(field='score', palette='orange-red') "
+        "zodat de gebruiker meteen de hotspots (donker) en de witte plekken (licht) ziet. "
+        "Eventuele osm-punten erbovenop.\n"
+        "Reply: één warme alinea met CONCLUSIES uit de heatmap — waar concentreert de "
+        "concurrentie zich, waar ligt nog ruimte — plus 2-4 kerncijfers. GEEN valse zekerheid: "
+        "dichtheid telt registraties, niet kwaliteit; benoem dunne of ontbrekende data eerlijk "
+        "(bij data_available=false: geen heatmap, leg het uit en verwijs naar Stad Gent / KBO). "
+        "Sluit af met een open vraag of de gebruiker concrete plekken wil zien die bij de droom "
+        "passen — dat leidt naar Waar.\n"
+        "Hoofdstuk-uitgang: de UI-knop 'Vind je plek'; OF de "
         "gebruiker zegt expliciet 'laten we zoeken' → set_chapter_state current_chapter='3_waar'.\n"
         "Bij die overgang: zet niche_signals in DEZELFDE set_chapter_state-patch (vereist voor "
         "de hoofdstuk-uitgang, anders wordt de overgang geweigerd) en schrijf één korte brug-zin "
@@ -304,7 +315,7 @@ def build_system_prompt(state: dict) -> str:
     block = build_chapter_block(state)
     # NOTE: DROOMZAAK_DEV_FABRICATE no longer touches the prompt. Fabrication is
     # now scoped to the five Supabase/DataGateway tools at the handler level
-    # (see droomzaak_fabricate.py), so native tools (OSM, geocode, Places,
+    # (see droomzaak_fabricate.py), so native tools (OSM, geocode,
     # web_search) and the LLM tools always run for real. The agent treats the
     # fabricated warehouse rows like any other tool result.
     return DROOMZAAK_BASE_PROMPT + "\n\n" + block
