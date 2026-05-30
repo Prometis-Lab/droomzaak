@@ -1,0 +1,27 @@
+# Semgrep scan scope — auto-discovered by semgrep/opengrep at the repo root.
+# Keep the SAST gate focused on Droomzaak's OWN code. Third-party / generated
+# code is out of scope: we don't own it and its findings would block /ship
+# (PRD: the gate's exit code owns pass/fail — see .claude/hooks/security-gate.sh).
+
+# Vendored third-party skills (Apache-2.0 — not our code; carries upstream findings)
+.claude/skills/vendored/
+
+# Optional local inspiration / prior implementations (gitignored)
+reference/
+inherited/
+
+# Dependencies & virtualenvs
+node_modules/
+.venv/
+venv/
+.uv/
+
+# Build output & caches
+dist/
+build/
+.cache/
+__pycache__/
+*.egg-info/
+
+# Scanner artifacts
+security.sarif

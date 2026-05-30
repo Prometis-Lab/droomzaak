@@ -34,13 +34,15 @@ git config core.hooksPath .githooks          # activates the conventional-commit
 uvx pre-commit install                        # deterministic security floor (.pre-commit-config.yaml)
 ```
 
-### 5. Security scanners (optional, for the Aikido audit)
+### 5. Security scanners (recommended, for the Aikido audit)
 The `/ship` security stage uses whatever is installed and **warns** (doesn't silently pass) when none is:
 ```
 uvx semgrep --version                         # SAST (Semgrep CE) — or Aikido's Opengrep
 brew install gitleaks                         # secrets — or Aikido's Betterleaks
+git clone --depth 1 https://github.com/semgrep/semgrep-rules .cache/semgrep-rules   # offline SAST rules
 curl -fsSL https://github.com/AikidoSec/safe-chain/releases/latest/download/install-safe-chain.sh | sh   # supply-chain
 ```
+The rules clone (gitignored) makes SAST **offline-safe**: the gate prefers `.cache/semgrep-rules` and only falls back to the network Semgrep registry if it's absent — so the venue's flaky Wi-Fi can't silently kill the scan. Verify the whole gate with `bash .claude/hooks/security-gate.sh full` → expect `security gate passed (secrets=1 sast=1)`, exit 0. (`.gitleaks.toml` already scopes both scanners out of third-party/cached paths — `.cache`, vendored, reference, node_modules, ….)
 
 ### 6. Inspiration materials (optional)
 `git clone` any public repos worth learning from (map apps, MapLibre/FastAPI/agent examples) and/or drop a prior implementation under `reference/` so `reference-scout` can mine them for ideas. **`reference/` is gitignored — it stays local, never committed.** Until then the scout works from the PRD + the architecture summary in CLAUDE.md.

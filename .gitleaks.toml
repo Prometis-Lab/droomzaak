@@ -15,3 +15,16 @@ paths = [
   '''.*\.example$''',
   '''\.claude/settings\.local\.json\.example$''',
 ]
+
+[[allowlists]]
+description = "Out-of-scope: third-party / generated / cached code (not ours). Mirrors .semgrepignore — these carry test fixtures full of fake secrets and would drown real findings."
+paths = [
+  '''^\.cache/''',                 # cloned SAST rulesets — test fixtures with planted secrets
+  '''^\.claude/skills/vendored/''', # vendored Apache-2.0 skills
+  '''^reference/''',                # local inspiration repos (gitignored)
+  '''^inherited/''',                # inherited toolkits (gitignored)
+  '''^node_modules/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+]

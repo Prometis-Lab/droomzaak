@@ -12,7 +12,7 @@ Sponsor **Aikido** audits this build. The gate is **deterministic** (a script), 
 .claude/hooks/security-gate.sh        # full scan (history + working tree + SARIF report) — for /ship
 .claude/hooks/security-gate.sh fast   # working-tree + targeted rules — for the optional commit hook
 ```
-It prefers Opengrep + Betterleaks, falls back to `uvx semgrep --config p/default` + `gitleaks`. **Missing tool → loud WARN + continue (exit 0 with a warning); real finding → exit 2 (block).** A scanner you can't install must **never** read as "clean" — if everything WARNs, say "no scanner ran — install via /bootstrap", don't report PASS.
+It prefers Opengrep + Betterleaks, falls back to Semgrep CE + `gitleaks`. For SAST it uses a **local ruleset** (`.cache/semgrep-rules/{python,javascript,typescript}`) when present — offline-safe — and only falls back to the network Semgrep registry (`p/default`, `p/python`…) when that clone is absent (it WARNs in that case). **Missing tool → loud WARN + continue (exit 0 with a warning); real finding → exit 2 (block).** A scanner you can't install must **never** read as "clean" — if everything WARNs, say "no scanner ran — install via /bootstrap", don't report PASS.
 
 Exit codes: `0` = clean (or only WARNs), `2` = findings → block. Capture the SARIF as the report artifact (the thing you'd show the judge).
 
@@ -43,4 +43,4 @@ BLOCK if the gate exits non-zero or any Critical/High checklist item fails. `/sh
 A scanner is **real software** (an AST/regex engine), so a *skill can't be* one — our `security-scan` skill *orchestrates* it. Nothing needs a heavy install, though: `uvx semgrep` / `uvx semgrep-mcp` fetch-and-cache on first run; secrets need `gitleaks` (brew/binary/docker) or `betterleaks`.
 
 ## Install (if the gate WARNs that tools are missing)
-`/bootstrap` covers it. Quick refs: `uvx semgrep --version` · `brew install gitleaks` (or Betterleaks) · Opengrep install script + a cloned `semgrep/semgrep-rules` (Opengrep ships no default rules). `Safe Chain`: `curl -fsSL https://github.com/AikidoSec/safe-chain/releases/latest/download/install-safe-chain.sh | sh`.
+`/bootstrap` covers it. Quick refs: `uvx semgrep --version` · `brew install gitleaks` (or Betterleaks) · `git clone --depth 1 https://github.com/semgrep/semgrep-rules .cache/semgrep-rules` (gitignored — makes SAST offline-safe for **both** Semgrep CE and Opengrep; Opengrep ships no default rules, and the gate prefers this local clone over the network registry for either engine). `Safe Chain`: `curl -fsSL https://github.com/AikidoSec/safe-chain/releases/latest/download/install-safe-chain.sh | sh`.

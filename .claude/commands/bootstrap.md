@@ -22,8 +22,16 @@ Get a freshly-cloned Droomzaak workspace ready. Run each step, then print a chec
 - The repo ships `.githooks/commit-msg` (conventional commits) but it's not active until wired: run `git config core.hooksPath .githooks` and confirm.
 - Optional deterministic security floor: tell the user they can `uvx pre-commit install` to enable `.pre-commit-config.yaml` (recommended before the Aikido audit). Don't install it unless asked.
 
-## 5. Security scanners (optional but recommended for the Aikido audit)
-- Check availability: `semgrep`/`uvx semgrep`, `gitleaks`/`betterleaks`, `opengrep`. Report which are missing with the install one-liners (`brew install gitleaks`; `uvx semgrep --version`; Aikido `Safe Chain` install script). The `/ship` security stage WARNs (not passes) when none is present.
+## 5. Security scanners (recommended for the Aikido audit) — make the `/ship` gate green AND offline-safe
+The `/ship` security stage runs `.claude/hooks/security-gate.sh`: gitleaks (secrets) + semgrep (SAST). It WARNs (not passes) when a scanner is missing, and the SAST falls back to the **network** Semgrep registry unless a local ruleset is cloned — a real risk on the venue's flaky Wi-Fi. Get both pieces in place:
+- **Secrets scanner** — `gitleaks`/`betterleaks`. If missing: `brew install gitleaks` (macOS) / see gitleaks releases. The gate auto-detects it; `.gitleaks.toml` already allowlists examples + out-of-scope dirs (`.cache`, vendored, reference, node_modules, …).
+- **SAST engine** — `semgrep`/`uvx semgrep` (or `opengrep`). Verify: `uvx semgrep --version`.
+- **Offline ruleset (do this — avoids registry/network at scan time)** — clone the rules into the gitignored cache the gate prefers:
+  ```sh
+  git clone --depth 1 https://github.com/semgrep/semgrep-rules .cache/semgrep-rules
+  ```
+  The gate uses `.cache/semgrep-rules/{python,javascript,typescript}` when present and prints `SAST scanned (semgrep CE, local rules)`; without it, it WARNs and uses the network registry. (Override path with `SEMGREP_RULES` / `OPENGREP_RULES`.)
+- Verify end-to-end: `bash .claude/hooks/security-gate.sh full` → expect `security gate passed (secrets=1 sast=1)`, exit 0.
 
 ## 6. Reference source
 - Check whether `reference/` holds inspiration materials (optional; cloned public repos and/or a prior implementation; gitignored). If empty, note that `reference-scout` simply works from the PRD + the architecture summary — nothing to install.

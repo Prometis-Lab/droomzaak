@@ -57,13 +57,34 @@ if have opengrep; then
 elif have semgrep || have uvx; then
   ran_sast=1
   SEMGREP="semgrep"; have semgrep || SEMGREP="uvx semgrep"
-  if [ "$MODE" = "fast" ]; then
-    $SEMGREP scan --quiet --error --config p/python --config p/javascript --config p/react --config p/secrets . || findings=1
+  RULES="${SEMGREP_RULES:-${ROOT}/.cache/semgrep-rules}"
+  # Prefer a local ruleset (offline-safe — the demo machine's network may be flaky);
+  # add only the language dirs that actually exist, so a partial/shallow clone
+  # degrades to the registry instead of erroring (a missing --config path makes
+  # semgrep exit 7, which `|| findings=1` would misread as a finding). Fall back to
+  # the Semgrep registry (p/…) when no local language dir is present.
+  CFG=()
+  for lang in python javascript typescript; do
+    [ -d "$RULES/$lang" ] && CFG+=(--config "$RULES/$lang")
+  done
+  if [ "${#CFG[@]}" -gt 0 ]; then
+    SRC="semgrep CE, local rules"
   else
-    $SEMGREP scan --quiet --error --config p/default --sarif --output security.sarif . || findings=1
+    warn "no local ruleset at $RULES (clone github.com/semgrep/semgrep-rules there for offline SAST) — using the Semgrep registry, which needs network."
+    if [ "$MODE" = "fast" ]; then
+      CFG=(--config p/python --config p/javascript --config p/react --config p/secrets)
+    else
+      CFG=(--config p/default)
+    fi
+    SRC="semgrep CE, registry"
+  fi
+  if [ "$MODE" = "fast" ]; then
+    $SEMGREP scan --quiet --error "${CFG[@]}" . || findings=1
+  else
+    $SEMGREP scan --quiet --error "${CFG[@]}" --sarif --output security.sarif . || findings=1
     [ -f security.sarif ] && ok "SARIF written to security.sarif"
   fi
-  ok "SAST scanned (semgrep CE)"
+  ok "SAST scanned (${SRC})"
 else
   warn "no SAST engine (install semgrep via 'uvx semgrep' or opengrep — see /bootstrap). NOT a clean result."
 fi
