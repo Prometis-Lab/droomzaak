@@ -2,7 +2,7 @@
 
 > The build sheet. Copy-paste each prompt into **Runway Gen-4.5**. Keyframes (KF) come from [`droomzaak-lore-reference.md`](droomzaak-lore-reference.md); narration from [`droomzaak-vo-script.md`](droomzaak-vo-script.md); story from [`droomzaak-grounding-storyline.md`](droomzaak-grounding-storyline.md).
 >
-> **Target final cut:** ~45s · **16:9 master** (+ 9:16 social) · **Status:** draft v1 · 2026-05-30
+> **Target final cut:** ~60s · **5:7 portrait master, 864×1214** · **Status:** draft v2 (product-demo tail added) · 2026-05-30
 
 ---
 
@@ -99,17 +99,26 @@ the screen as she sits back. She is alone.
 ```
 > **Tip:** the tab-explosion + final query text may render cleaner as a **real screen-capture** (record a browser, or build a quick mock) composited in the edit, rather than fully generated. See Non-Lore assets.
 
-### S8 · The brand *(resolution + CTA)*
-- **Frames:** screen-capture → Droomzaak landing page · **GEN** n/a (edit/comp) → **CUT** ~6s + ~2s end card · **VO:** "Laat administratie en keuzestress je dromen niet tegenhouden. Bezoek onze website en bouw je droomzaak."
-- **Build:** the push-in transitions into a clean screen capture → **fades to black** → resolves on the **real Droomzaak landing page** → logo end card (`droomzaak.png`) on warm earth tone, tagline *"Van droom naar zaak."*
+### S8 · Website reveal *(resolution begins)*
+- **Frames:** S7 screen-capture → Droomzaak landing page · **GEN** n/a (edit/comp) → **CUT** ~5s · **VO:** "Laat administratie en keuzestress je dromen niet tegenhouden." (`Laat_administratie…tegenhouden`, 4.6s)
+- **Build:** the S7 push-in transitions into a clean screen capture → **fades to black** → resolves on the **real Droomzaak landing page**.
+
+### S9 · Product demo *(NEW — proof)*
+- **Frames:** screen capture of the **live Droomzaak product** (describe-dream → Droomkaart/insights → *Droomzaak-pakket*) · **GEN** n/a (joint screen capture) → **CUT** ~16s · **VO:** "Het enige dat je moet doen is je droomzaak beschrijven…" (`product_description`, 16.3s)
+- **Build:** a tight walkthrough of the actual app — describe-your-dream input → insights from the data sources → location, permits, and financial expectations → the package. Capture **5:7 portrait (864×1214)** or letterbox a desktop capture into the frame. Keep it brisk — it's *proof*, not a manual. *(This beat intentionally drops the Lore device — it's the product itself; keep it short so it reads as proof, not a tangent.)*
+
+### S10 · CTA + end card *(resolution lands)*
+- **Frames:** landing page → logo end card (`droomzaak.png`), warm earth tone, tagline *"Van droom naar zaak."* · **CUT** ~6s + ~2s end card · **VO:** "Bezoek onze website en laat ons je helpen je droomleven waar te maken." (`bezoek_onze_website`, 5.4s) → "droomzaak.be, want ondernemen, da's een zaak van dromen." (`droomzaak_be_CTA`, 5.3s)
+- **Build:** the CTA closes on the **signature line** — the *zaak* pun bookends Beat 6 (grounding invariant #9 preserved). The end card is the only fully-still moment.
 
 ---
 
 ## Non-Lore assets (gather / build separately)
 
 - [ ] **Tab-explosion screen** — record a real browser or build a mock; the cleanest path for legible text. Final query: **"Hoe start ik een eigen zaak?"**
-- [ ] **Droomzaak landing-page screenshot** — *needs the live/staging URL or a screen-capture from you* (chosen end beat). Capture in 16:9 and a 9:16 crop.
-- [ ] **Logo end card** — from `droomzaak.png`, warm earth-tone background, tagline.
+- [ ] **Droomzaak landing-page screenshot** — *needs the live/staging URL or a screen-capture from you* (chosen end beat). Capture in 5:7 portrait (864×1214) or letterbox.
+- [ ] **Product-demo screen capture (S9, NEW)** — joint capture of the live Droomzaak app: describe-dream input → Droomkaart / data-source insights → location, permits, financial expectations → the package. ~16s to match the `product_description` VO. Target **5:7 portrait (864×1214)** or letterbox a desktop capture.
+- [ ] **Logo end card** — from `droomzaak.png`, warm earth-tone background, tagline *"Van droom naar zaak."*
 
 ---
 
@@ -124,7 +133,9 @@ the screen as she sits back. She is alone.
 | S5 |  | Runway |  |  |  |
 | S6 |  | Runway |  |  |  |
 | S7 |  | Runway/capture |  |  |  |
-| S8 |  | edit |  |  |  |
+| S8 |  | edit |  |  | website reveal |
+| S9 |  | capture |  |  | product demo (joint capture) |
+| S10 |  | edit |  |  | CTA + end card |
 
 ---
 
