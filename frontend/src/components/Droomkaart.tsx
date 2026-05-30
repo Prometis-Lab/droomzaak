@@ -11,6 +11,14 @@ async function openPakket(sessionId: string) {
   }
 }
 
+/** Render only clean primitive signals — drop nulls, empties, and nested objects
+ *  so a stray non-founder-facing value can't surface as "[object Object]" junk. */
+function nicheEntries(ns: Record<string, unknown>): [string, string][] {
+  return Object.entries(ns)
+    .filter(([, v]) => (typeof v === "string" || typeof v === "number" || typeof v === "boolean") && String(v).trim() !== "")
+    .map(([k, v]) => [k, String(v)]);
+}
+
 /** The accumulating-profile sidebar — fills in as chapters complete. */
 export function Droomkaart({ state, sessionId }: { state: ChapterState | null; sessionId?: string | null }) {
   const dp = state?.dream_profile;
@@ -29,7 +37,7 @@ export function Droomkaart({ state, sessionId }: { state: ChapterState | null; s
             <>
               {dp.founder_quote && <p style={{ fontStyle: "italic" }}>“{dp.founder_quote}”</p>}
               <ul className="dk-list">
-                {dp.sector && <li>Sector: {dp.sector}{dp.nace_code ? ` (${dp.nace_code})` : ""}</li>}
+                {dp.sector && <li>Sector: {dp.sector}</li>}
                 {dp.scale && <li>Schaal: {dp.scale}</li>}
                 {dp.seats_guess != null && <li>{dp.seats_guess} zitplaatsen</li>}
                 {dp.neighbourhood_anchor && <li>Buurt: {dp.neighbourhood_anchor}</li>}
@@ -42,10 +50,10 @@ export function Droomkaart({ state, sessionId }: { state: ChapterState | null; s
         </div>
         <div className="dk-card">
           <h3>Niche</h3>
-          {ns ? (
+          {ns && nicheEntries(ns).length > 0 ? (
             <ul className="dk-list">
-              {Object.entries(ns).map(([k, v]) => (
-                <li key={k}>{k.replace(/_/g, " ")}: {String(v)}</li>
+              {nicheEntries(ns).map(([k, v]) => (
+                <li key={k}>{k.replace(/_/g, " ")}: {v}</li>
               ))}
             </ul>
           ) : (

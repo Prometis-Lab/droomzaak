@@ -132,6 +132,12 @@ Action shapes (inside apply_map_actions.actions[]):
   package_url, current_chapter. Nested dicts merge deep; lists replace. If advancing
   current_chapter, the current chapter's exit condition MUST hold after merging the
   rest of the patch; chapters advance sequentially only.
+  FOUNDER-FACING: everything you write here is rendered verbatim in the Droomkaart
+  sidebar the founder reads. Write only clean, human-readable Dutch summary values —
+  never tool errors, "geen data"/failed-pull notes, exception text, dataset_ids,
+  field names, tool names, or raw scores. If a signal could not be retrieved, OMIT it
+  from the patch entirely (name the gap in the reply + report_problem) — do NOT record
+  the failure in the state.
 
 Worked examples (the shape of a good turn — plan silently, call tools, commit once):
 
@@ -203,7 +209,13 @@ def _chapter2(state: dict) -> str:
         "Bij die overgang: zet niche_signals in DEZELFDE set_chapter_state-patch (vereist voor "
         "de hoofdstuk-uitgang, anders wordt de overgang geweigerd) en schrijf één korte brug-zin "
         "zonder beloofde resultaten. Je krijgt direct daarna de Waar-tools om de buurten echt te "
-        "scoren in dezelfde beurt."
+        "scoren in dezelfde beurt.\n"
+        "niche_signals is FOUNDER-FACING (verschijnt letterlijk in de Droomkaart-zijbalk): "
+        "een kleine map van leesbare Nederlandse label→korte-waarde, bv. "
+        "{\"vergelijkbare zaken in Gent\": \"±120\", \"trend\": \"groeiend\", \"sfeer\": \"veel cafés in de buurt\"}. "
+        "Zet er ALLEEN signalen in die een tool echt teruggaf. Mislukte of lege pulls hoor je NIET "
+        "vast te leggen — laat ze weg, benoem het gat in de reply en call report_problem. Geen "
+        "foutmeldingen, geen 'geen data', geen dataset_ids/veldnamen/ruwe scores in niche_signals."
     )
 
 
