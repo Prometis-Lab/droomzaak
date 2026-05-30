@@ -45,6 +45,17 @@ DROOMZAAK_POSTGRES_URL = (
 DROOMZAAK_POOL_MAX_SIZE = int(os.environ.get("DROOMZAAK_POOL_MAX_SIZE", "5"))
 DROOMZAAK_QUERY_TIMEOUT_SECONDS = float(os.environ.get("DROOMZAAK_QUERY_TIMEOUT_SECONDS", "10"))
 
+# ── Dev-only flag — default OFF; MUST stay off for the demo/pitch ───────
+# When on, the system prompt gains a block telling the agent to fabricate
+# clearly-labelled placeholder figures whenever a data tool is offline, so the
+# loop can be exercised without the DataGateway/warehouse. This intersects the
+# "never fake certainty" invariant: NEVER add DROOMZAAK_DEV_FABRICATE to
+# .env.demo or any demo/prod shell — a labelled fake is still a fake in front of
+# a jury / the Aikido audit. Local dev only.
+DROOMZAAK_DEV_FABRICATE = os.environ.get("DROOMZAAK_DEV_FABRICATE", "").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+
 # ── Live behaviour tools (not routed through the DataGateway) ───────────
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY", "")
