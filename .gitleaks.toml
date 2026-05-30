@@ -17,6 +17,12 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Friday demo secrets file — holds REAL keys but is gitignored (.gitignore) and never committed. The working-tree `dir` scan walks it anyway and would flag it on every run; .gitignore is the real guard. (Trade-off: a forced `git add -f .env.demo` would no longer be caught by gitleaks — rely on .gitignore + review for that.)"
+paths = [
+  '''(^|/)\.env\.demo$''',
+]
+
+[[allowlists]]
 description = "Out-of-scope: third-party / generated / cached code (not ours). Mirrors .semgrepignore — these carry test fixtures full of fake secrets and would drown real findings."
 paths = [
   '''^\.cache/''',                 # cloned SAST rulesets — test fixtures with planted secrets
