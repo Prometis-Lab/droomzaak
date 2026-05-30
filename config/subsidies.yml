@@ -1,0 +1,74 @@
+# Curated subsidies (research-verified 2026 amounts/eligibility/URLs).
+# eligibility_filter keys checked by subsidies_for:
+#   sector_group: 'any' or a specific group · budget_eur_max: cap on dream budget.
+# status: active | ended_2025  (cancelled schemes render greyed-out — honesty flag).
+
+- subsidy_id: startlening
+  name: Startlening (PMV/z)
+  authority: PMV
+  max_amount_eur: 100000
+  eligibility_filter: {sector_group: any}
+  deep_link: https://www.pmv.eu/nl/producten/startlening
+  description_nl: Achtergestelde lening tot €100.000 voor starters, looptijd tot 10 jaar.
+  estimated_processing_days: 60
+  status: active
+
+- subsidy_id: winwinlening
+  name: Winwinlening
+  authority: Vlaamse overheid
+  max_amount_eur: 75000
+  eligibility_filter: {sector_group: any}
+  deep_link: https://www.winwinlening.be/
+  description_nl: Familie/vrienden lenen je geld met een jaarlijks belastingvoordeel (tot €75.000 per kredietgever).
+  estimated_processing_days: 30
+  status: active
+
+- subsidy_id: cofinanciering
+  name: Cofinanciering+
+  authority: PMV
+  max_amount_eur: 700000
+  eligibility_filter: {sector_group: any}
+  deep_link: https://www.pmv.eu/nl/producten/cofinanciering
+  description_nl: Cofinanciering naast een banklening; versterkt je dossier bij de bank.
+  estimated_processing_days: 60
+  status: active
+
+- subsidy_id: kmo_portefeuille
+  name: KMO-portefeuille
+  authority: VLAIO
+  max_amount_eur: 7500
+  eligibility_filter: {sector_group: any}
+  deep_link: https://www.vlaio.be/nl/subsidies-financiering/kmo-portefeuille
+  description_nl: 30% steun op advies/opleiding (advies sinds 1 feb 2026 beperkt tot cybersecurity).
+  estimated_processing_days: 30
+  status: active
+
+- subsidy_id: ecologiepremie
+  name: Ecologiepremie+
+  authority: VLAIO
+  max_amount_eur: 1000000
+  eligibility_filter: {sector_group: any}
+  deep_link: https://www.vlaio.be/nl/subsidies-financiering/ecologiepremie
+  description_nl: Steun voor energie-efficiënte/milieuvriendelijke investeringen uit de limitatieve technologielijst.
+  estimated_processing_days: 60
+  status: active
+
+- subsidy_id: oog_advies
+  name: OOG — gratis startersadvies
+  authority: Stad Gent
+  max_amount_eur: 0
+  eligibility_filter: {sector_group: any}
+  deep_link: https://stad.gent/nl/ondernemen
+  description_nl: Ondersteuningspunt Ondernemers Gent — gratis persoonlijk advies bij je opstart.
+  estimated_processing_days: 14
+  status: active
+
+- subsidy_id: renovatie_handelspand
+  name: Renovatiepremie handelspanden (Stad Gent)
+  authority: Stad Gent
+  max_amount_eur: 30000
+  eligibility_filter: {sector_group: any}
+  deep_link: https://stad.gent/nl/ondernemen
+  description_nl: Premie voor renovatie van handelspanden — STOPGEZET sinds 22 sep 2025.
+  estimated_processing_days: 45
+  status: ended_2025

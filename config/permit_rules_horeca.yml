@@ -1,0 +1,117 @@
+# Curated permit rules (research-verified facts; deep-links to official sources).
+# attribute_filter keys come from the sector_attributes "company topology" and are
+# matched by permit_checklist_for: a rule applies when every key/value in its
+# attribute_filter is present in the founder's attributes (empty filter = always).
+# Calculator-based costs are left null and surfaced as "via official simulator".
+
+# ── Horeca (NACE 56.101 restaurant / 56.102 frituur) ──────────────────────────
+- rule_id: kbo_btw_baseline
+  nace_code: '56.101'
+  attribute_filter: {}
+  permit_name: Inschrijving KBO + BTW-activering
+  authority: FOD Economie
+  deep_link: https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming-oprichten
+  estimated_cost_eur: 105.50
+  estimated_processing_days: 1
+  notes_nl: Basisstap voor elke zaak — ondernemingsloket (~€105,50) + gratis BTW via MyMinfin.
+
+- rule_id: horeca_attest_gent
+  nace_code: '56.101'
+  attribute_filter: {}
+  permit_name: Horeca-attest Stad Gent
+  authority: Stad Gent
+  deep_link: https://stad.gent/nl/ondernemen/horeca/horeca-attest
+  estimated_cost_eur: 0
+  estimated_processing_days: 30
+  notes_nl: Verplicht vóór opening van elke horecazaak in Gent (≥45 werkdagen indien >100 m²).
+
+- rule_id: favv_toelating
+  nace_code: '56.101'
+  attribute_filter: {}
+  permit_name: FAVV-toelating voedselveiligheid
+  authority: FAVV
+  deep_link: https://www.favv-afsca.be/nl/themas/starters
+  estimated_cost_eur: 100.58
+  estimated_processing_days: 30
+  notes_nl: Registratie gratis; jaarlijkse starterheffing ~€100,58. Vereist voor voedselbereiding.
+
+- rule_id: drankvergunning_gegist
+  nace_code: '56.101'
+  attribute_filter: {serves_alcohol: gegiste}
+  permit_name: Drankvergunning gegiste dranken
+  authority: Stad Gent
+  deep_link: https://stad.gent/nl/ondernemen/horeca/drankvergunning
+  estimated_cost_eur: 0
+  estimated_processing_days: 30
+  notes_nl: Voor bier en wijn (gegiste dranken) in een vaste drankgelegenheid.
+
+- rule_id: drankvergunning_sterk
+  nace_code: '56.101'
+  attribute_filter: {serves_alcohol: sterke}
+  permit_name: Sterkedrankvergunning
+  authority: Stad Gent
+  deep_link: https://stad.gent/nl/ondernemen/horeca/drankvergunning
+  estimated_cost_eur: 0
+  estimated_processing_days: 45
+  notes_nl: Voor sterke dranken/cocktails — bijkomende machtiging college + uittreksel strafregister.
+
+- rule_id: omgevings_frituur
+  nace_code: '56.101'
+  attribute_filter: {hot_kitchen_frying: true}
+  permit_name: Omgevingsmelding/-vergunning (VLAREM rubriek 45.4)
+  authority: Omgevingsloket Vlaanderen
+  deep_link: https://omgevingsloketvlaanderen.be/
+  estimated_cost_eur: null
+  estimated_processing_days: 105
+  notes_nl: Frituren/bakken → milieurubriek. Check de VLAREM-wegwijzer voor klasse (melding vs vergunning).
+
+- rule_id: terrasvergunning
+  nace_code: '56.101'
+  attribute_filter: {seating: terrace}
+  permit_name: Terrasvergunning + inname openbaar domein
+  authority: Stad Gent
+  deep_link: https://stad.gent/nl/ondernemen/horeca/terrassen-gent
+  estimated_cost_eur: null
+  estimated_processing_days: 30
+  notes_nl: Vereist horeca-attest eerst; jaarlijkse belasting per m²/zone (via simulator).
+
+- rule_id: unisono_muziek
+  nace_code: '56.101'
+  attribute_filter: {music: true}
+  permit_name: Unisono (SABAM + billijke vergoeding)
+  authority: Unisono
+  deep_link: https://www.unisono.be/
+  estimated_cost_eur: null
+  estimated_processing_days: 1
+  notes_nl: Bij publieke muziek — bedrag via Unisono-simulator (m²/type).
+
+- rule_id: brandveiligheid
+  nace_code: '56.101'
+  attribute_filter: {capacity_seats_min_50: true}
+  permit_name: Brandveiligheidsattest
+  authority: Brandweerzone Centrum
+  deep_link: https://www.brandweerzonecentrum.be/
+  estimated_cost_eur: 0
+  estimated_processing_days: 30
+  notes_nl: Capaciteitsgedreven; vaak vervat in het horeca-attesttraject.
+
+# ── Retail scaffold (NACE 47.x — e.g. boekenwinkel 47.610) ────────────────────
+- rule_id: kbo_btw_baseline_retail
+  nace_code: '47.610'
+  attribute_filter: {}
+  permit_name: Inschrijving KBO + BTW-activering
+  authority: FOD Economie
+  deep_link: https://economie.fgov.be/nl/themas/ondernemingen/een-onderneming-oprichten
+  estimated_cost_eur: 105.50
+  estimated_processing_days: 1
+  notes_nl: Basisstap voor elke handelszaak.
+
+- rule_id: favv_retail_food
+  nace_code: '47.610'
+  attribute_filter: {food_retail: true}
+  permit_name: FAVV-registratie (voeding)
+  authority: FAVV
+  deep_link: https://www.favv-afsca.be/nl/themas/starters
+  estimated_cost_eur: 0
+  estimated_processing_days: 30
+  notes_nl: Enkel indien voeding wordt verkocht.
