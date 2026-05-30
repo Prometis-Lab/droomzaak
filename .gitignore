@@ -262,3 +262,6 @@ supabase/.env
 *.duckdb.wal
 frontend/dist/
 .python-version
+
+# TS build info
+*.tsbuildinfo
