@@ -1,5 +1,10 @@
-/** The accumulating-profile sidebar. Commit-1 shell; fills in per chapter later. */
-export function Droomkaart() {
+import type { ChapterState } from "../droomzaak/types";
+
+/** The accumulating-profile sidebar — fills in as chapters complete. */
+export function Droomkaart({ state }: { state: ChapterState | null }) {
+  const dp = state?.dream_profile;
+  const ns = state?.niche_signals as Record<string, unknown> | null | undefined;
+  const loc = state?.chosen_location;
   return (
     <aside className="droomkaart">
       <div className="droomkaart-head">
@@ -9,16 +14,47 @@ export function Droomkaart() {
       <div className="droomkaart-body">
         <div className="dk-card">
           <h3>De droom</h3>
-          <p className="dk-empty">Vertel hiernaast in één zin wat je wil openen.</p>
+          {dp ? (
+            <>
+              {dp.founder_quote && <p style={{ fontStyle: "italic" }}>“{dp.founder_quote}”</p>}
+              <ul className="dk-list">
+                {dp.sector && <li>Sector: {dp.sector}{dp.nace_code ? ` (${dp.nace_code})` : ""}</li>}
+                {dp.scale && <li>Schaal: {dp.scale}</li>}
+                {dp.seats_guess != null && <li>{dp.seats_guess} zitplaatsen</li>}
+                {dp.neighbourhood_anchor && <li>Buurt: {dp.neighbourhood_anchor}</li>}
+                {dp.vibe && <li>Sfeer: {dp.vibe}</li>}
+              </ul>
+            </>
+          ) : (
+            <p className="dk-empty">Vertel hiernaast in één zin wat je wil openen.</p>
+          )}
         </div>
         <div className="dk-card">
           <h3>Niche</h3>
-          <p className="dk-empty">Nog niet verkend.</p>
+          {ns ? (
+            <ul className="dk-list">
+              {Object.entries(ns).map(([k, v]) => (
+                <li key={k}>{k.replace(/_/g, " ")}: {String(v)}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="dk-empty">Nog niet verkend.</p>
+          )}
         </div>
         <div className="dk-card">
           <h3>Plek</h3>
-          <p className="dk-empty">Nog niet gekozen.</p>
+          {loc?.address ? (
+            <p>{loc.address}{loc.wijk_nl ? ` · ${loc.wijk_nl}` : ""}</p>
+          ) : (
+            <p className="dk-empty">Nog niet gekozen.</p>
+          )}
         </div>
+        {state?.package_url && (
+          <div className="dk-card">
+            <h3>Pakket</h3>
+            <a href={state.package_url} target="_blank" rel="noreferrer">Open je Droomzaak-pakket →</a>
+          </div>
+        )}
       </div>
     </aside>
   );
