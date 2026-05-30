@@ -255,3 +255,10 @@ dist/
 supabase/.branches/
 supabase/.temp/
 supabase/.env
+
+# ── Droomzaak app build artifacts ──
+/data/
+*.duckdb
+*.duckdb.wal
+frontend/dist/
+.python-version
