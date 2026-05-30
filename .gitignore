@@ -258,3 +258,11 @@ dist/
 supabase/.branches/
 supabase/.temp/
 supabase/.env
+
+# Pitch heavy media — synced via Dropbox, not GitHub (keeps the repo lean).
+# WAVs are regenerable from the tracked MP3 sources via the loudnorm step (see vo-script).
+# Keyframe PNGs are NOT regenerable — they live in Dropbox / pitch/keyframes/; keep them backed up there.
+pitch/voice_clips/*.wav
+pitch/voice_clips/**/*.wav
+pitch/keyframes/*.png
+pitch/keyframes/**/*.png
