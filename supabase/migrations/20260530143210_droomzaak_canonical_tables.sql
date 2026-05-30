@@ -1,15 +1,10 @@
--- ============================================================================
--- Droomzaak warehouse — full schema snapshot of the `droomzaak` schema (local mirror)
--- ============================================================================
--- GENERATED — do not hand-edit. The QUERYABLE, RE-DEPLOYABLE copy of the live schema
--- on Supabase (project knwnjhbdmmdkqnmakqkr). Change history lives in supabase/migrations/.
+-- Migration: droomzaak analytical warehouse — all 16 canonical tables.
+-- Applied 2026-05-30 (folded from supabase/scripts/canonical_tables.sql, now archived).
+-- Idempotent (CREATE … IF NOT EXISTS) — safe to re-run / redeploy to a fresh project.
 --
--- Regenerate after every applied migration so it matches the live DB. Preferred (when the
--- tools are installed — neither was on the build machine, so this snapshot was derived
--- from migrations/20260530143210_droomzaak_canonical_tables.sql, which the live DB matches):
---     supabase db dump --schema droomzaak -f supabase/schema.sql
---   # or:
---     pg_dump --schema-only --no-owner --no-privileges --schema=droomzaak "$SUPABASE_DB_URL" > supabase/schema.sql
+-- Each table's column ORDER matches its pipelines/droomzaak/datasets/<name>/clean.py
+-- SELECT, so the loader's position-based `INSERT … SELECT *`
+-- (pipelines/droomzaak/load_to_supabase.py) lines up.
 --
 -- Geometry note: geo_sectors/geo_wijken store WKB as bytea (no PostGIS dependency); the
 -- usable polygons live in the render tier (DuckDB/GeoJSON), per .claude/rules/data-tiers.md.
