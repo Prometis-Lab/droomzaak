@@ -55,6 +55,7 @@ TABLES = {
     "geo_sectors": "geo_sectors_gent",
     "geo_wijken": "geo_wijken_gent",
     "kbo_geocode": "kbo_geocode_gent",
+    "permit_rules": "permit_rules",
 }
 
 # Per-table DuckDB SELECT list for the INSERT (defaults to "*"). The geo spine carries a
