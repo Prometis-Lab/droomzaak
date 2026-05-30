@@ -106,12 +106,6 @@ async def create_session() -> dict:
     return {"session_id": uuid.uuid4().hex}
 
 
-@app.delete("/api/agent/session/{session_id}")
-async def delete_session(session_id: str, store: CatalogStore = StoreDep) -> dict:
-    store.delete_session(session_id)
-    return {"deleted": True}
-
-
 @app.get("/api/agent/debug/{debug_id}")
 async def get_debug(debug_id: str, store: CatalogStore = StoreDep) -> dict:
     run = store.load_debug(debug_id)

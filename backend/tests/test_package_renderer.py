@@ -169,6 +169,40 @@ def test_autoescape_blocks_injection(_isolated_store):
     assert "&lt;script&gt;" in html
 
 
+def test_deep_link_javascript_scheme_neutralised(_isolated_store):
+    """A javascript: deep_link (injectable via PUT /chapter) must never reach href.
+
+    Jinja escapes text but not URL schemes, so deep_link is sanitized in
+    package_view._safe_url. Covered for both link sinks (subsidies + permits) and
+    the protocol-relative `//host` bypass; a legit https link still survives.
+    """
+    sid = "sess-jsurl"
+    pkg = _full_package(sid)
+    pkg["subsidies"][0]["deep_link"] = "javascript:alert(document.domain)"
+    pkg["permit_checklist"][0]["deep_link"] = "//evil.example/x"
+    pkg["subsidies"][1]["deep_link"] = "https://stad.gent/ok"  # a safe one survives
+    _isolated_store.save_package(sid, pkg)
+    html = _client().get(f"/pakket/{sid}").text
+    assert "javascript:" not in html
+    assert 'href="//evil.example/x"' not in html
+    assert 'href="https://stad.gent/ok"' in html
+
+
+def test_deep_link_sanitised_on_chapter_state_path(_isolated_store):
+    """Same guard on the synth-from-chapter-state render path (no saved package)."""
+    sid = "sess-jsurl-state"
+    state = default_chapter_state()
+    state["dream_profile"] = {"sector": "bistro", "founder_quote": "x"}
+    state["subsidies"] = [
+        {"subsidy_id": "x", "name": "Boobytrap", "deep_link": "javascript:alert(1)",
+         "status": "active"},
+    ]
+    _isolated_store.save_chapter_state(sid, state)
+    html = _client().get(f"/pakket/{sid}").text
+    assert "javascript:" not in html
+    assert "Boobytrap" in html  # the entry still renders, just without the link
+
+
 def test_pdf_download_returns_pdf(_isolated_store, monkeypatch):
     """The /pdf route hands back an attachment with the bytes from html_to_pdf
     (monkeypatched — tests never launch a real browser)."""

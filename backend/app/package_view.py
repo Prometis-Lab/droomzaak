@@ -47,6 +47,44 @@ def _is_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+_SAFE_URL_SCHEMES = ("http://", "https://")
+
+
+def _safe_url(value: object) -> str | None:
+    """Return `value` only if it's a safe link target, else None.
+
+    `deep_link` is rendered into an `<a href>`; Jinja autoescaping escapes the
+    *text* but does NOT neutralise a dangerous URL scheme, so a stored
+    `javascript:`/`data:`/`vbscript:` link would execute on click. deep_link can
+    arrive from curated config, an agent tool, OR an attacker-controlled
+    chapter-state patch (PUT /chapter), so this output-side guard is the real
+    defence: only plain http(s) or a site-relative path survives; anything else
+    drops to None and the template hides the link. (Aikido: stored XSS.)
+    """
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if candidate.lower().startswith(_SAFE_URL_SCHEMES):
+        return candidate
+    # Site-relative path, but reject protocol-relative `//host` which dodges the
+    # scheme check above.
+    if candidate.startswith("/") and not candidate.startswith("//"):
+        return candidate
+    return None
+
+
+def _with_safe_links(items: object) -> list:
+    """Copy each item with its `deep_link` passed through `_safe_url`."""
+    if not isinstance(items, list):
+        return []
+    return [
+        {**item, "deep_link": _safe_url(item.get("deep_link"))}
+        if isinstance(item, dict) and "deep_link" in item
+        else item
+        for item in items
+    ]
+
+
 def _clean_permits(items: object) -> list[dict]:
     """Keep only renderable permit rows (a dict with a name).
 
@@ -196,8 +234,8 @@ def build_package_dict(state: dict, session_id: str, *, generated_at: str = "") 
         "niche_signals": state.get("niche_signals") or {},
         "chosen_location": state.get("chosen_location") or {},
         "candidate_locations": state.get("candidate_locations") or [],
-        "permit_checklist": state.get("permit_checklist") or [],
-        "subsidies": state.get("subsidies") or [],
+        "permit_checklist": _with_safe_links(state.get("permit_checklist") or []),
+        "subsidies": _with_safe_links(state.get("subsidies") or []),
         "legal_form": state.get("legal_form") or {},
         "dream_narrative": state.get("dream_narrative") or "",
         "tuesday_morning": state.get("tuesday_morning") or "",
